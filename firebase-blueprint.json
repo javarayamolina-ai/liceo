@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "Educational project entries (ABP)",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the project" },
+        "description": { "type": "string", "description": "Brief description" },
+        "category": { "type": "string", "description": "Subject category" },
+        "authorName": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approved": { "type": "boolean", "description": "Whether the content has been approved by admin" }
+      },
+      "required": ["title", "category", "authorId", "createdAt", "approved"]
+    },
+    "StudentWork": {
+      "title": "Student Work",
+      "description": "Individual work submitted by students",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "studentName": { "type": "string" },
+        "year": { "type": "string" },
+        "workType": { "type": "string" },
+        "link": { "type": "string" },
+        "content": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approved": { "type": "boolean", "description": "Whether the content has been approved by admin" }
+      },
+      "required": ["title", "studentName", "workType", "content", "authorId", "createdAt", "approved"]
+    },
+    "Material": {
+      "title": "Material",
+      "description": "Educational resources for teachers",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "fileUrl": { "type": "string" },
+        "description": { "type": "string" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approved": { "type": "boolean", "description": "Whether the content has been approved by admin" }
+      },
+      "required": ["title", "subject", "authorId", "createdAt", "approved"]
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Liceo activities and events",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the activity" },
+        "description": { "type": "string", "description": "Brief description of the activity" },
+        "imageUrl": { "type": "string", "description": "Optional image URL representing the activity" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approved": { "type": "boolean", "description": "Whether the activity has been approved by admin" }
+      },
+      "required": ["title", "description", "authorId", "createdAt", "approved"]
+    }
+  },
+  "firestore": {
+    "projects": {
+      "schema": "Project",
+      "description": "Collection of educational projects"
+    },
+    "studentWorks": {
+      "schema": "StudentWork",
+      "description": "Collection of student writings and artifacts"
+    },
+    "materials": {
+      "schema": "Material",
+      "description": "Collection of teacher resources"
+    },
+    "activities": {
+      "schema": "Activity",
+      "description": "Collection of Liceo activities and events"
+    }
+  }
+}

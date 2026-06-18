@@ -1,0 +1,6 @@
+{
+  "name": "Remix: Protagonistas del Cambio",
+  "description": "Repositorio educativo del Liceo Eugenio Pereira Salas (Jornada Vespertina) enfocado en una red de aprendizajes y justicia social.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
