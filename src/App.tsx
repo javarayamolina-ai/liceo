@@ -2526,7 +2526,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
 
     try {
       const common = {
-        approved: isAdmin,
+        approved: false, // Set to false initially to comply with Firestore creation rules
         authorId: user?.uid || 'guest',
         createdAt: new Date(),
         ...(uploadedUrl ? { 
@@ -2536,28 +2536,35 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
         } : {}),
       };
 
+      let newDoc;
       if (contentType === 'projects') {
-        await FirestoreService.create('projects', {
+        newDoc = await FirestoreService.create('projects', {
           ...data,
           ...common,
           authorName: user?.displayName || 'Anónimo',
         });
       } else if (contentType === 'works') {
-        await FirestoreService.create('studentWorks', {
+        newDoc = await FirestoreService.create('studentWorks', {
           ...data,
           ...common,
         });
       } else if (contentType === 'materials') {
-        await FirestoreService.create('materials', {
+        newDoc = await FirestoreService.create('materials', {
           ...data,
           ...common,
           teacherName: user?.displayName || 'Prof.'
         });
       } else if (contentType === 'activities') {
-        await FirestoreService.create('activities', {
+        newDoc = await FirestoreService.create('activities', {
           ...data,
           ...common,
         });
+      }
+
+      // If the submitter is admin, auto-approve the document immediately in a second step
+      if (isAdmin && newDoc && newDoc.id) {
+        const collectionPath = contentType === 'works' ? 'studentWorks' : contentType;
+        await FirestoreService.update(collectionPath, newDoc.id, { approved: true });
       }
       onSuccess(contentType);
       if (isAdmin) {

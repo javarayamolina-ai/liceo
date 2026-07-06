@@ -29,35 +29,35 @@ service cloud.firestore {
     // Common read for all public collections
     match /projects/{id} {
       allow read: if true;
-      allow create: if isValidId(id) && request.resource.data.approved == false;
+      allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
       allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /studentWorks/{id} {
       allow read: if true;
-      allow create: if isValidId(id) && request.resource.data.approved == false;
+      allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
       allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /materials/{id} {
       allow read: if true;
-      allow create: if isValidId(id) && request.resource.data.approved == false;
+      allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
       allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /activities/{id} {
       allow read: if true;
-      allow create: if isValidId(id) && request.resource.data.approved == false;
+      allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
       allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /testimonials/{id} {
       allow read: if true;
-      allow create: if isValidId(id) && request.resource.data.approved == false;
+      allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
       allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
