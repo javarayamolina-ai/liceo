@@ -52,6 +52,8 @@ const CURSOS = [
   "Segundo Nivel A"
 ];
 
+const ROLES = ['Estudiante', 'Apoderado/a', 'Egresado/a', 'Vecino/a', 'Profesor/a', 'Otro'];
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'projects' | 'works' | 'materials' | 'activities' | 'about' | 'testimonials'>('about');
@@ -246,13 +248,13 @@ export default function App() {
           <div className="flex items-center gap-4 md:gap-6 shrink-0">
             <PolishedButton 
               onClick={handleOpenForm}
-              className="hidden md:flex flex-col items-center bg-brand-red text-white border-none text-[8.5px] py-1.5 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all shrink-0 leading-none gap-0.5 cursor-pointer"
+              className="hidden md:flex flex-col items-center justify-center bg-brand-red text-white border-none text-[9px] py-2 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all shrink-0 leading-none gap-0.5 cursor-pointer font-black uppercase"
             >
               <div className="flex items-center gap-1 font-black">
-                <Plus className="w-3 h-3 shrink-0" />
+                <Plus className="w-3.5 h-3.5 shrink-0" />
                 <span>SUBE TU</span>
               </div>
-              <span className="font-mono text-[8px] tracking-wider opacity-90">CONTENIDO</span>
+              <span className="font-black">CONTENIDO</span>
             </PolishedButton>
 
             <button className="xl:hidden cursor-pointer p-1" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -706,7 +708,7 @@ function CardMediaPreview({
     <div className="w-full space-y-4">
       {/* Main Image */}
       {url && isImage && (
-        <div className="w-full aspect-video md:aspect-[4/3] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
+        <div className="w-full aspect-[4/5] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
           <img 
             src={url} 
             alt={attachmentName || "Publicación"} 
@@ -718,7 +720,7 @@ function CardMediaPreview({
 
       {/* Main Video */}
       {url && isVideo && (
-        <div className="w-full aspect-video md:aspect-[4/3] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
+        <div className="w-full aspect-[4/5] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
           <video 
             src={url} 
             controls 
@@ -729,7 +731,7 @@ function CardMediaPreview({
 
       {/* Main PDF/Office Doc Attachment */}
       {url && !isImage && !isVideo && (
-        <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white">
+        <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
           <div className="w-full p-4 bg-brand-bg flex items-center justify-between gap-3 border-b-2 border-brand-black">
             <div className="flex items-center gap-3 min-w-0">
               <FileIcon className="w-8 h-8 text-brand-red shrink-0" />
@@ -738,40 +740,29 @@ function CardMediaPreview({
                 <span className="text-[8px] font-mono uppercase text-gray-400">Documento de Lectura</span>
               </div>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDocPreview(!showDocPreview)}
-                className="px-2 py-1 bg-brand-black text-white hover:bg-brand-red text-[9px] font-mono uppercase font-bold transition-all shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] cursor-pointer"
-              >
-                {showDocPreview ? 'Ocultar' : 'Previsualizar'}
-              </button>
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 py-1 bg-white text-brand-black border border-brand-border hover:border-brand-red text-[9px] font-mono uppercase font-bold transition-all cursor-pointer"
-              >
-                Descargar
-              </a>
-            </div>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-brand-black text-white hover:bg-brand-red text-[10px] font-mono uppercase font-black tracking-wider transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+            >
+              Descargar
+            </a>
           </div>
-          {showDocPreview && (
-            <div className="w-full h-80 bg-neutral-100 relative">
-              <iframe 
-                src={isPdf ? url : `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`} 
-                className="w-full h-full border-none" 
-                title="Vista previa del documento"
-                sandbox="allow-same-origin allow-scripts allow-popups"
-              />
-            </div>
-          )}
+          <div className="w-full h-[450px] bg-neutral-100 relative">
+            <iframe 
+              src={isPdf ? url : `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`} 
+              className="w-full h-full border-none" 
+              title="Vista previa del documento"
+              sandbox="allow-same-origin allow-scripts allow-popups"
+            />
+          </div>
         </div>
       )}
 
       {/* Google Drive Link Preview */}
       {driveEmbedUrl && (
-        <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white">
+        <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
           <div className="w-full p-4 bg-brand-bg flex items-center justify-between gap-3 border-b-2 border-brand-black">
             <div className="flex items-center gap-3 min-w-0">
               <Globe className="w-8 h-8 text-blue-600 shrink-0" />
@@ -780,34 +771,23 @@ function CardMediaPreview({
                 <span className="text-[8px] font-mono uppercase text-gray-400">Enlace Externo Vinculado</span>
               </div>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDrivePreview(!showDrivePreview)}
-                className="px-2 py-1 bg-brand-black text-white hover:bg-brand-red text-[9px] font-mono uppercase font-bold transition-all shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] cursor-pointer"
-              >
-                {showDrivePreview ? 'Ocultar' : 'Previsualizar'}
-              </button>
-              <a
-                href={driveLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-2 py-1 bg-white text-brand-black border border-brand-border hover:border-brand-red text-[9px] font-mono uppercase font-bold transition-all cursor-pointer"
-              >
-                Abrir Link
-              </a>
-            </div>
+            <a
+              href={driveLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 bg-brand-black text-white hover:bg-brand-red text-[10px] font-mono uppercase font-black tracking-wider transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+            >
+              Abrir Link
+            </a>
           </div>
-          {showDrivePreview && (
-            <div className="w-full h-96 bg-neutral-100 relative">
-              <iframe 
-                src={driveEmbedUrl} 
-                className="w-full h-full border-none" 
-                title="Vista previa del documento de Google Drive"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-              />
-            </div>
-          )}
+          <div className="w-full h-[450px] bg-neutral-100 relative">
+            <iframe 
+              src={driveEmbedUrl} 
+              className="w-full h-full border-none" 
+              title="Vista previa del documento de Google Drive"
+              sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -2126,7 +2106,6 @@ function TestimonialsView({ testimonials, user }: { testimonials: Testimonial[];
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const ROLES = ['Estudiante', 'Apoderado/a', 'Egresado/a', 'Vecino/a', 'Profesor/a', 'Otro'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2448,9 +2427,9 @@ function Principle({ title, text, onClick }: { title: string, text: string, onCl
   );
 }
 
-function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }: { onSuccess: (subType: 'projects' | 'works' | 'materials' | 'activities') => void, onCancel: () => void, user: User | null, isAdmin?: boolean, forcedType?: 'projects' | 'works' | 'materials' | 'activities' }) {
+function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }: { onSuccess: (subType: 'projects' | 'works' | 'materials' | 'activities' | 'testimonials') => void, onCancel: () => void, user: User | null, isAdmin?: boolean, forcedType?: 'projects' | 'works' | 'materials' | 'activities' | 'testimonials' }) {
   const [loading, setLoading] = useState(false);
-  const [contentType, setContentType] = useState<'projects' | 'works' | 'materials' | 'activities'>(forcedType || 'works');
+  const [contentType, setContentType] = useState<'projects' | 'works' | 'materials' | 'activities' | 'testimonials'>(forcedType || 'works');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string>('');
@@ -2559,6 +2538,11 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
           ...data,
           ...common,
         });
+      } else if (contentType === 'testimonials') {
+        newDoc = await FirestoreService.create('testimonials', {
+          ...data,
+          ...common,
+        });
       }
 
       // If the submitter is admin, auto-approve the document immediately in a second step
@@ -2585,6 +2569,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
     if (contentType === 'projects') return isAdmin ? 'Publicar Nuevo Proyecto' : 'Compartir Proyecto de Investigación';
     if (contentType === 'materials') return isAdmin ? 'Publicar Nuevo Recurso' : 'Compartir Recurso';
     if (contentType === 'activities') return isAdmin ? 'Publicar Nueva Actividad Comunitaria' : 'Compartir Actividad Comunitaria';
+    if (contentType === 'testimonials') return isAdmin ? 'Publicar Nuevo Testimonio' : 'Compartir Testimonio o Experiencia';
     return 'Compartir Conocimiento';
   };
 
@@ -2601,7 +2586,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
         </button>
 
         <div className="flex flex-wrap gap-2 mb-8 p-1 bg-gray-100 rounded">
-          {(['works', 'projects', 'activities', 'materials'] as const).map(t => (
+          {(['works', 'projects', 'activities', 'materials', 'testimonials'] as const).map(t => (
             <button
               key={t}
               onClick={() => setContentType(t)}
@@ -2611,7 +2596,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
                 contentType === t ? 'bg-brand-black text-white shadow-lg' : 'text-gray-400 hover:text-brand-black'
               )}
             >
-              {t === 'works' ? 'Creaciones estudiantiles' : t === 'projects' ? 'Proyectos' : t === 'activities' ? 'Actividades' : 'Recursos'}
+              {t === 'works' ? 'Creaciones estudiantiles' : t === 'projects' ? 'Proyectos' : t === 'activities' ? 'Actividades' : t === 'materials' ? 'Recursos' : 'Testimonios'}
             </button>
           ))}
         </div>
@@ -2694,9 +2679,25 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
             </div>
           )}
 
+          {contentType === 'testimonials' && (
+            <div className="space-y-4">
+              <FormInput name="name" label="Nombre Completo" required />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase text-gray-400">Rol o Estamento</label>
+                <select name="role" required className="bg-white border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-red">
+                  {ROLES.map(role => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+              </div>
+              <FormTextarea name="content" label="Tu Testimonio / Experiencia" required />
+            </div>
+          )}
+
           {/* ── File Upload Section ─────────────────────────── */}
-          <div className="border-2 border-dashed border-brand-border rounded p-4 space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Adjuntar Documento / PDF / Imagen</p>
+          {contentType !== 'testimonials' && (
+            <div className="border-2 border-dashed border-brand-border rounded p-4 space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Adjuntar Documento / PDF / Imagen</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -2795,6 +2796,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
               Formatos aceptados: PDF, Word, Excel, PowerPoint, imágenes (JPG, PNG, etc.) · Máx. 20 MB
             </p>
           </div>
+          )}
 
           <div className="pt-4 border-t border-gray-100">
             <PolishedButton type="submit" className="w-full bg-brand-red text-white" disabled={loading || (uploadProgress !== null && uploadProgress < 100)}>
