@@ -665,27 +665,51 @@ function CardMediaPreview({
   function getGoogleDriveEmbedUrl(linkUrl: string) {
     if (!linkUrl) return '';
     try {
-      if (linkUrl.includes('drive.google.com') || linkUrl.includes('docs.google.com')) {
-        let embedUrl = linkUrl;
-        if (embedUrl.includes('/d/')) {
-          const parts = embedUrl.split('/d/');
-          if (parts[1]) {
-            const idPart = parts[1].split('/')[0].split('?')[0].split('#')[0];
-            if (embedUrl.includes('/document/d/')) {
-              return `https://docs.google.com/document/d/${idPart}/preview`;
-            }
-            if (embedUrl.includes('/presentation/d/')) {
-              return `https://docs.google.com/presentation/d/${idPart}/preview`;
-            }
-            if (embedUrl.includes('/spreadsheets/d/')) {
-              return `https://docs.google.com/spreadsheets/d/${idPart}/preview`;
-            }
-            return `https://drive.google.com/file/d/${idPart}/preview`;
+      if (linkUrl.includes('/preview') || linkUrl.includes('embeddedfolderview')) {
+        return linkUrl;
+      }
+      
+      const urlObj = new URL(linkUrl);
+      if (urlObj.hostname.includes('google.com')) {
+        // 1. Standard /d/ID format
+        const dMatch = linkUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (dMatch && dMatch[1]) {
+          const fileId = dMatch[1];
+          if (linkUrl.includes('/document/')) {
+            return `https://docs.google.com/document/d/${fileId}/preview`;
           }
+          if (linkUrl.includes('/presentation/')) {
+            return `https://docs.google.com/presentation/d/${fileId}/preview`;
+          }
+          if (linkUrl.includes('/spreadsheets/')) {
+            return `https://docs.google.com/spreadsheets/d/${fileId}/preview`;
+          }
+          return `https://drive.google.com/file/d/${fileId}/preview`;
+        }
+
+        // 2. Query param format: id=ID
+        const idParam = urlObj.searchParams.get('id');
+        if (idParam) {
+          if (linkUrl.includes('/document')) {
+            return `https://docs.google.com/document/d/${idParam}/preview`;
+          }
+          if (linkUrl.includes('/presentation')) {
+            return `https://docs.google.com/presentation/d/${idParam}/preview`;
+          }
+          if (linkUrl.includes('/spreadsheets')) {
+            return `https://docs.google.com/spreadsheets/d/${idParam}/preview`;
+          }
+          return `https://drive.google.com/file/d/${idParam}/preview`;
+        }
+
+        // 3. Folder format: /folders/FOLDER_ID
+        const folderMatch = linkUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+        if (folderMatch && folderMatch[1]) {
+          return `https://drive.google.com/embeddedfolderview?id=${folderMatch[1]}#grid`;
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error parsing Drive URL', e);
     }
     return '';
   }
@@ -708,7 +732,7 @@ function CardMediaPreview({
     <div className="w-full space-y-4">
       {/* Main Image */}
       {url && isImage && (
-        <div className="w-full aspect-[4/5] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
+        <div className="w-full aspect-[3/4] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
           <img 
             src={url} 
             alt={attachmentName || "Publicación"} 
@@ -720,7 +744,7 @@ function CardMediaPreview({
 
       {/* Main Video */}
       {url && isVideo && (
-        <div className="w-full aspect-[4/5] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
+        <div className="w-full aspect-[3/4] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
           <video 
             src={url} 
             controls 
@@ -2006,6 +2030,13 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                 <div className="inline-block px-2 py-1 text-[9px] font-bold uppercase tracking-widest bg-brand-red text-white self-start">
                   {item.role}
                 </div>
+                <CardMediaPreview 
+                  attachmentUrl={item.attachmentUrl} 
+                  attachmentType={item.attachmentType} 
+                  attachmentName={item.attachmentName} 
+                  imageUrl={item.imageUrl} 
+                  driveLink={item.driveLink} 
+                />
                 <p className="text-xs text-gray-700 leading-relaxed border-l-4 border-brand-red pl-4 py-2 bg-brand-bg">
                   {item.content}
                 </p>
@@ -2168,6 +2199,13 @@ function TestimonialsView({ testimonials, user }: { testimonials: Testimonial[];
                 </div>
               </div>
               <div className="relative p-4 bg-brand-bg border-l-4 border-brand-red flex-grow">
+                <CardMediaPreview 
+                  attachmentUrl={t.attachmentUrl} 
+                  attachmentType={t.attachmentType} 
+                  attachmentName={t.attachmentName} 
+                  imageUrl={t.imageUrl} 
+                  driveLink={t.driveLink} 
+                />
                 <span className="text-4xl font-serif text-brand-red leading-none absolute top-0 left-2 select-none opacity-20">"</span>
                 <p className="text-sm text-gray-800 font-medium leading-relaxed pt-3">
                   {t.content}
@@ -2691,13 +2729,14 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
                 </select>
               </div>
               <FormTextarea name="content" label="Tu Testimonio / Experiencia" required />
+              <FormInput name="driveLink" label="Enlace de Drive / Google Docs (opcional)" placeholder="https://drive.google.com/..." type="url" icon={<Link2 className="w-4 h-4" />} />
+              <FormInput name="imageUrl" label="Enlace de la Imagen (Opcional)" placeholder="https://ejemplo.com/imagen.jpg" />
             </div>
           )}
 
           {/* ── File Upload Section ─────────────────────────── */}
-          {contentType !== 'testimonials' && (
-            <div className="border-2 border-dashed border-brand-border rounded p-4 space-y-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Adjuntar Documento / PDF / Imagen</p>
+          <div className="border-2 border-dashed border-brand-border rounded p-4 space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Adjuntar Documento / PDF / Imagen</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -2796,7 +2835,6 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
               Formatos aceptados: PDF, Word, Excel, PowerPoint, imágenes (JPG, PNG, etc.) · Máx. 20 MB
             </p>
           </div>
-          )}
 
           <div className="pt-4 border-t border-gray-100">
             <PolishedButton type="submit" className="w-full bg-brand-red text-white" disabled={loading || (uploadProgress !== null && uploadProgress < 100)}>

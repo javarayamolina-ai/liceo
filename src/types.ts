@@ -82,6 +82,11 @@ export interface Testimonial {
   createdAt: any;
   pinned?: boolean;
   authorId?: string;
+  imageUrl?: string;
+  driveLink?: string;
+  attachmentUrl?: string;
+  attachmentType?: string;
+  attachmentName?: string;
 }
 
 export enum OperationType {
