@@ -35,6 +35,11 @@ import { PolishedButton, PolishedCard, LiceoLogo, RetroCarousel, RetroConfirmPro
 import { cn } from './lib/utils';
 import muralImg from './assets/images/mural_brigada_ramona_parra_1781765930415.jpg';
 
+const stripAccents = (str: string) => {
+  if (!str) return '';
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+};
+
 const ASIGNATURAS = [
   "Ciencias Naturales",
   "Educación física",
@@ -215,12 +220,12 @@ export default function App() {
 
   const filterBySearch = (list: any[]) => {
     if (!clientSearchTerm.trim()) return list;
-    const term = clientSearchTerm.toLowerCase().trim();
+    const term = stripAccents(clientSearchTerm.toLowerCase().trim());
     return list.filter(item => {
-      const title = (item.title || item.name || '').toLowerCase();
-      const description = (item.description || item.content || '').toLowerCase();
-      const author = (item.authorName || item.studentName || item.teacherName || item.name || '').toLowerCase();
-      const extra = (item.category || item.workType || item.subject || item.role || '').toLowerCase();
+      const title = stripAccents((item.title || item.name || '').toLowerCase());
+      const description = stripAccents((item.description || item.content || '').toLowerCase());
+      const author = stripAccents((item.authorName || item.studentName || item.teacherName || item.name || '').toLowerCase());
+      const extra = stripAccents((item.category || item.workType || item.subject || item.role || '').toLowerCase());
       return title.includes(term) || description.includes(term) || author.includes(term) || extra.includes(term);
     });
   };
@@ -294,7 +299,7 @@ export default function App() {
             exit={{ opacity: 0, height: 0 }}
             className="xl:hidden bg-white border-b border-brand-border overflow-hidden z-40"
           >
-            <div className="px-6 py-8 flex flex-col gap-4">
+            <div className="px-4 py-6 flex flex-col gap-3">
               <NavButton isMobile active={activeTab === 'about'} onClick={() => handleTabChange('about', true)}>Inicio</NavButton>
               <NavButton isMobile active={activeTab === 'works'} onClick={() => handleTabChange('works', true)}>Creaciones estudiantiles</NavButton>
               <NavButton isMobile active={activeTab === 'projects'} onClick={() => handleTabChange('projects', true)}>Proyectos</NavButton>
@@ -371,7 +376,7 @@ export default function App() {
                 </div>
                 <input 
                   type="text" 
-                  placeholder="Buscar creaciones, profesores, proyectos o palabras clave..."
+                  placeholder="Escribe palabras claves de lo que buscas"
                   value={clientSearchTerm}
                   onChange={(e) => setClientSearchTerm(e.target.value)}
                   className="w-full bg-transparent border-none pl-12 pr-12 py-3.5 text-sm font-bold uppercase tracking-wide placeholder-gray-400 outline-none text-brand-black"
@@ -386,7 +391,7 @@ export default function App() {
                 )}
               </div>
               <p className="text-[9px] font-mono text-gray-400 uppercase tracking-widest mt-2 ml-1">
-                Buscador interactivo · Escribe cualquier palabra clave o nombre para filtrar en tiempo real
+                Escribe cualquier palabra que ayude a encontrar lo que buscas
               </p>
             </div>
           )}
@@ -534,7 +539,7 @@ export default function App() {
                             {activeTab === 'about' && "Sube tus trabajos, creaciones literarias, proyectos didácticos o registros colectivos directamente para nutrir la memoria y el aprendizaje de toda la comunidad."}
                             {activeTab === 'works' && "Sube tus cuentos, reflexiones, obras literarias, ensayos o creaciones artísticas directamente para compartirlas con toda la comunidad."}
                             {activeTab === 'projects' && "Sube tus iniciativas de clase, proyectos colaborativos o indagaciones de aula para que queden registradas en el archivo histórico."}
-                            {activeTab === 'materials' && "Sube tus guías pedagógicas, folletos explicativos o recursos para que otros maestros puedan usarlos en sus aulas."}
+                            {activeTab === 'materials' && "Sube tus recursos/materiales para que la comunidad estudiantil pueda usarlo."}
                             {activeTab === 'activities' && "Sube tus bitácoras de actividades colectivas, registros de talleres o crónicas fotográficas para celebrar los logros de la escuela."}
                           </p>
                           <PolishedButton 
@@ -1909,9 +1914,48 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
     setSelectedAuthor('');
   }, [adminTab]);
 
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+
+  const handleSaveEdit = async (updates: Record<string, string>) => {
+    if (!editingItem) return;
+    const table = adminTab === 'projects' ? 'projects' : adminTab === 'works' ? 'studentWorks' : adminTab === 'materials' ? 'materials' : adminTab === 'testimonials' ? 'testimonials' : 'activities';
+    await FirestoreService.update(table as any, editingItem.id, updates);
+    setEditingItem(null);
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
-      {/* Dashboard Stats */}
+      {/* Admin Edit Modal */}
+      <AnimatePresence>
+        {editingItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/70 flex items-center justify-center p-4"
+            onClick={() => setEditingItem(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white border-4 border-brand-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="bg-brand-black text-white px-6 py-4 flex items-center justify-between border-b-4 border-brand-red">
+                <div>
+                  <span className="text-[9px] font-mono tracking-widest uppercase text-brand-red block">Panel de Administrador</span>
+                  <span className="font-black uppercase tracking-tight text-sm">Editando Publicación</span>
+                </div>
+                <button onClick={() => setEditingItem(null)} className="p-2 hover:bg-brand-red transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <AdminEditForm item={editingItem} tab={adminTab} onSave={handleSaveEdit} onClose={() => setEditingItem(null)} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <div key={idx} className="p-6 border-2 border-brand-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -2120,6 +2164,12 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                     </button>
                   )}
                   <button 
+                    onClick={() => setEditingItem(item)}
+                    className="px-3 py-2 text-[9px] font-bold uppercase border border-gray-200 text-gray-400 hover:text-brand-red hover:border-brand-red transition-all flex items-center gap-1"
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button 
                     onClick={() => FirestoreService.update('testimonials', item.id, { pinned: !item.pinned })}
                     className={cn("px-3 py-2 text-[9px] font-bold uppercase border transition-all flex items-center gap-1", item.pinned ? "border-brand-red bg-brand-red text-white hover:bg-brand-black hover:border-brand-black" : "border-gray-200 text-gray-400 hover:text-brand-red hover:border-brand-red")}
                   >
@@ -2134,6 +2184,12 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
           ) : (
             filteredList.map(item => (
             <div key={item.id} className="relative group">
+              <button 
+                onClick={() => setEditingItem(item)}
+                className="absolute top-3 left-3 z-20 opacity-0 group-hover:opacity-100 bg-white border-2 border-brand-black text-[9px] font-bold uppercase px-2 py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-brand-red hover:text-white hover:border-brand-red transition-all flex items-center gap-1"
+              >
+                ✏️ Editar
+              </button>
               {adminTab === 'projects' && (
                 <ProjectCard 
                   project={item} 
@@ -2413,7 +2469,7 @@ function AboutSection() {
       <section className="grid lg:grid-cols-3 gap-1 px-1 bg-brand-border">
         <AboutStat label="Justicia" value="Equidad" desc="Acceso al conocimiento pedagógico." />
         <AboutStat label="Voz" value="Identidad" desc="El estudiantado como autor de su historia." />
-        <AboutStat label="Red" value="Comunidad" desc="El profesorado compartiendo para transformar." />
+        <AboutStat label="Red" value="Comunidad" desc="El profesorado compartiendo para transformar." last />
       </section>
 
       <section className="bg-brand-red text-white p-16 md:p-24 rotate-1">
@@ -2503,9 +2559,9 @@ function AboutSection() {
   );
 }
 
-function AboutStat({ label, value, desc }: { label: string, value: string, desc: string }) {
+function AboutStat({ label, value, desc, last = false }: { label: string, value: string, desc: string, last?: boolean }) {
   return (
-    <div className="bg-brand-bg p-12 hover:bg-white transition-colors">
+    <div className={`bg-brand-bg p-12 hover:bg-white transition-colors${last ? ' pl-16' : ''}`}>
       <div className="text-[10px] font-bold uppercase tracking-widest text-brand-red mb-4">{label}</div>
       <div className="text-5xl font-bold tracking-tighter uppercase mb-4">{value}</div>
       <p className="text-sm text-gray-500 leading-relaxed font-medium">{desc}</p>
@@ -2939,6 +2995,94 @@ function FormTextarea({ label, ...props }: { label: string } & React.TextareaHTM
         className="bg-white border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-red transition-colors min-h-[100px]" 
         {...props} 
       />
+    </div>
+  );
+}
+
+function AdminEditForm({ item, tab, onSave, onClose }: { item: any; tab: string; onSave: (updates: Record<string, string>) => void; onClose: () => void }) {
+  const [fields, setFields] = React.useState<Record<string, string>>(() => {
+    const f: Record<string, string> = {};
+    if (tab === 'projects') {
+      f.title = item.title || '';
+      f.category = item.category || '';
+      f.description = item.description || '';
+      f.authorName = item.authorName || '';
+      f.driveLink = item.driveLink || '';
+      f.imageUrl = item.imageUrl || '';
+    } else if (tab === 'works') {
+      f.title = item.title || '';
+      f.studentName = item.studentName || '';
+      f.workType = item.workType || '';
+      f.year = item.year || '';
+      f.content = item.content || '';
+      f.driveLink = item.driveLink || '';
+    } else if (tab === 'materials') {
+      f.title = item.title || '';
+      f.teacherName = item.teacherName || '';
+      f.subject = item.subject || '';
+      f.description = item.description || '';
+      f.driveLink = item.driveLink || '';
+    } else if (tab === 'activities') {
+      f.title = item.title || '';
+      f.category = item.category || '';
+      f.description = item.description || '';
+      f.driveLink = item.driveLink || '';
+      f.imageUrl = item.imageUrl || '';
+    } else if (tab === 'testimonials') {
+      f.name = item.name || '';
+      f.role = item.role || '';
+      f.content = item.content || '';
+      f.driveLink = item.driveLink || '';
+      f.imageUrl = item.imageUrl || '';
+    }
+    return f;
+  });
+
+  const fieldLabels: Record<string, string> = {
+    title: 'T\u00edtulo', studentName: 'Nombre del/de la Estudiante', authorName: 'Autor/a', name: 'Nombre',
+    category: 'Categor\u00eda / Asignatura', workType: 'Tipo de Trabajo / Asignatura', subject: 'Asignatura',
+    year: 'Curso o Nivel', teacherName: 'Profesor/a', role: 'Rol o Estamento',
+    description: 'Descripci\u00f3n / Uso Pedag\u00f3gico', content: 'Contenido / Resumen',
+    driveLink: 'Enlace Drive (URL)', imageUrl: 'Enlace de Imagen (URL)',
+  };
+
+  const longFields = ['description', 'content'];
+
+  return (
+    <div className="p-6 space-y-4">
+      {Object.entries(fields).map(([key, val]) => (
+        <div key={key} className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold uppercase text-gray-500 tracking-widest">{fieldLabels[key] || key}</label>
+          {longFields.includes(key) ? (
+            <textarea
+              value={val}
+              onChange={e => setFields(prev => ({ ...prev, [key]: e.target.value }))}
+              className="bg-gray-50 border-2 border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-red transition-colors min-h-[100px] resize-y"
+            />
+          ) : (
+            <input
+              type="text"
+              value={val}
+              onChange={e => setFields(prev => ({ ...prev, [key]: e.target.value }))}
+              className="bg-gray-50 border-2 border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-red transition-colors"
+            />
+          )}
+        </div>
+      ))}
+      <div className="flex gap-3 pt-4 border-t border-brand-border">
+        <button
+          onClick={() => onSave(fields)}
+          className="flex-1 bg-brand-red text-white text-[10px] font-black uppercase tracking-widest py-3 hover:bg-brand-black transition-colors shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+        >
+          \u2713 Guardar Cambios
+        </button>
+        <button
+          onClick={onClose}
+          className="px-6 text-[10px] font-black uppercase tracking-widest border-2 border-brand-black hover:bg-brand-black hover:text-white transition-colors"
+        >
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }
