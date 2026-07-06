@@ -728,11 +728,30 @@ function CardMediaPreview({
   const isPdf = (attachmentType && attachmentType === 'application/pdf') || 
                 (url && url.match(/\.pdf/i));
 
+  const isWord = (attachmentType && (attachmentType.includes('word') || attachmentType.includes('officedocument.wordprocessingml'))) || 
+                 (url && url.match(/\.(doc|docx)/i));
+
+  const isExcel = (attachmentType && (attachmentType.includes('excel') || attachmentType.includes('officedocument.spreadsheetml'))) || 
+                  (url && url.match(/\.(xls|xlsx)/i));
+
+  const isPpt = (attachmentType && (attachmentType.includes('powerpoint') || attachmentType.includes('officedocument.presentationml'))) || 
+                (url && url.match(/\.(ppt|pptx)/i));
+
+  const isOffice = isWord || isExcel || isPpt;
+
+  const getDocViewerUrl = () => {
+    if (!url) return '';
+    if (isOffice) {
+      return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    }
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+  };
+
   return (
     <div className="w-full space-y-4">
       {/* Main Image */}
       {url && isImage && (
-        <div className="w-full aspect-[3/4] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
+        <div className="w-full aspect-[9/16] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
           <img 
             src={url} 
             alt={attachmentName || "Publicación"} 
@@ -744,7 +763,7 @@ function CardMediaPreview({
 
       {/* Main Video */}
       {url && isVideo && (
-        <div className="w-full aspect-[3/4] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
+        <div className="w-full aspect-[9/16] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
           <video 
             src={url} 
             controls 
@@ -775,7 +794,7 @@ function CardMediaPreview({
           </div>
           <div className="w-full h-[450px] bg-neutral-100 relative">
             <iframe 
-              src={isPdf ? url : `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`} 
+              src={getDocViewerUrl()} 
               className="w-full h-full border-none" 
               title="Vista previa del documento"
               sandbox="allow-same-origin allow-scripts allow-popups"
