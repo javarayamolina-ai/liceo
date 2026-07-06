@@ -15,6 +15,7 @@ export interface Project {
   approved: boolean;
   rejected?: boolean;
   pinned?: boolean;
+  likes?: number;
 }
 
 export interface StudentWork {
@@ -35,6 +36,7 @@ export interface StudentWork {
   approved: boolean;
   rejected?: boolean;
   pinned?: boolean;
+  likes?: number;
 }
 
 export interface Material {
@@ -53,6 +55,7 @@ export interface Material {
   approved: boolean;
   rejected?: boolean;
   pinned?: boolean;
+  likes?: number;
 }
 
 export interface Activity {
@@ -70,6 +73,7 @@ export interface Activity {
   rejected?: boolean;
   category?: string;
   pinned?: boolean;
+  likes?: number;
 }
 
 export interface Testimonial {
@@ -87,6 +91,7 @@ export interface Testimonial {
   attachmentUrl?: string;
   attachmentType?: string;
   attachmentName?: string;
+  likes?: number;
 }
 
 export enum OperationType {

@@ -30,35 +30,35 @@ service cloud.firestore {
     match /projects/{id} {
       allow read: if true;
       allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
-      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
+      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /studentWorks/{id} {
       allow read: if true;
       allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
-      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
+      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /materials/{id} {
       allow read: if true;
       allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
-      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
+      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /activities/{id} {
       allow read: if true;
       allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
-      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
+      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 
     match /testimonials/{id} {
       allow read: if true;
       allow create: if isValidId(id) && (request.resource.data.approved == false || isAdmin());
-      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved);
+      allow update: if isAdmin() || (isOwner(resource.data) && request.resource.data.approved == resource.data.approved) || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
       allow delete: if isAdmin() || isOwner(resource.data);
     }
 

@@ -24,7 +24,9 @@ import {
   Paperclip,
   UploadCloud,
   File as FileIcon,
-  Search
+  Search,
+  Heart,
+  Share2
 } from 'lucide-react';
 import { auth, storage } from './lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -75,6 +77,84 @@ export default function App() {
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
   const [clientSearchTerm, setClientSearchTerm] = useState('');
 
+  // Nuevos estados para mejoras (likes, filtros combinados, compartir y autor)
+  const [selectedAuthor, setSelectedAuthor] = useState<string | null>(null);
+  const [likedItems, setLikedItems] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('liked_items') || '[]');
+    } catch (e) {
+      return [];
+    }
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [projectsLimit, setProjectsLimit] = useState(6);
+  const [worksLimit, setWorksLimit] = useState(6);
+  const [materialsLimit, setMaterialsLimit] = useState(6);
+  const [activitiesLimit, setActivitiesLimit] = useState(6);
+  const [testimonialsLimit, setTestimonialsLimit] = useState(6);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  const handleToggleLike = async (collectionPath: string, id: string, currentLikes = 0) => {
+    const isLiked = likedItems.includes(id);
+    const updatedLikes = isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
+    const newLikedItems = isLiked 
+      ? likedItems.filter(item => item !== id) 
+      : [...likedItems, id];
+    
+    setLikedItems(newLikedItems);
+    localStorage.setItem('liked_items', JSON.stringify(newLikedItems));
+    
+    try {
+      await FirestoreService.update(collectionPath, id, { likes: updatedLikes });
+    } catch (error) {
+      console.error("Error updating likes:", error);
+      // Revert state
+      setLikedItems(likedItems);
+      localStorage.setItem('liked_items', JSON.stringify(likedItems));
+      showToast("Error al actualizar reacciones.");
+    }
+  };
+
+  const handleShare = (item: any, type: string) => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?tab=${type}&detail=${item.id}&type=${type}`;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrl)
+        .then(() => showToast("¡Enlace copiado al portapapeles!"))
+        .catch(() => showToast("No se pudo copiar el enlace."));
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast("¡Enlace copiado al portapapeles!");
+      } catch (err) {
+        showToast("No se pudo copiar el enlace.");
+      }
+      document.body.removeChild(textArea);
+    }
+    
+    const titleText = item.title || item.name || "";
+    const text = `¡Mira esta publicación en "Protagonistas del Cambio"!: "${titleText}"\n${shareUrl}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleSelectAuthor = (authorName: string, targetTab?: string) => {
+    setSelectedAuthor(authorName);
+    if (targetTab && ["projects", "works", "materials", "activities", "testimonials"].includes(targetTab)) {
+      setActiveTab(targetTab as any);
+    }
+  };
+
   const handleOpenDetail = (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => {
     const categoryLabel = type === 'projects' ? 'PROYECTOS' : type === 'works' ? 'CREACIONES ESTUDIANTILES' : type === 'materials' ? 'RECURSOS' : 'ACTIVIDADES';
     const categoryValue = type === 'projects' ? item.category : type === 'works' ? item.workType : type === 'materials' ? item.subject : item.category;
@@ -93,6 +173,12 @@ export default function App() {
     setSelectedAsignatura(null);
     setSelectedCourse(null);
     setClientSearchTerm('');
+    setSelectedAuthor(null);
+    setProjectsLimit(6);
+    setWorksLimit(6);
+    setMaterialsLimit(6);
+    setActivitiesLimit(6);
+    setTestimonialsLimit(6);
   }, [activeTab]);
 
   useEffect(() => {
@@ -113,6 +199,45 @@ export default function App() {
       unsubTestimonials();
     };
   }, []);
+
+  // Procesamiento de Deep Links al montar la app
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    const search = params.get('search');
+    const author = params.get('author');
+    
+    if (tab && ['projects', 'works', 'materials', 'activities', 'about', 'testimonials'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+    if (search) {
+      setClientSearchTerm(search);
+    }
+    if (author) {
+      setSelectedAuthor(author);
+    }
+  }, []);
+
+  // Abre el modal detallado cuando se carga la publicación correspondiente desde los parámetros URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const detailId = params.get('detail');
+    const detailType = params.get('type');
+    
+    if (detailId && detailType) {
+      let foundItem: any = null;
+      if (detailType === 'projects') foundItem = projects.find(p => p.id === detailId);
+      else if (detailType === 'works') foundItem = works.find(w => w.id === detailId);
+      else if (detailType === 'materials') foundItem = materials.find(m => m.id === detailId);
+      else if (detailType === 'activities') foundItem = activities.find(a => a.id === detailId);
+      
+      if (foundItem) {
+        handleOpenDetail(foundItem, detailType as any);
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + `?tab=${detailType}`;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+      }
+    }
+  }, [projects, works, materials, activities]);
 
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = isDemoAdmin || (user?.email && adminEmails.includes(user.email));
@@ -230,11 +355,20 @@ export default function App() {
     });
   };
 
-  const visibleProjects = filterBySearch(rawProjects);
-  const visibleWorks = filterBySearch(rawWorks);
-  const visibleMaterials = filterBySearch(rawMaterials);
-  const visibleActivities = filterBySearch(rawActivities);
-  const visibleTestimonials = filterBySearch(rawTestimonials);
+  const filterByAuthor = (list: any[]) => {
+    if (!selectedAuthor) return list;
+    const term = selectedAuthor.toLowerCase();
+    return list.filter(item => {
+      const authorName = (item.authorName || item.studentName || item.teacherName || item.name || '').toLowerCase();
+      return authorName === term;
+    });
+  };
+
+  const visibleProjects = filterByAuthor(filterBySearch(rawProjects));
+  const visibleWorks = filterByAuthor(filterBySearch(rawWorks));
+  const visibleMaterials = filterByAuthor(filterBySearch(rawMaterials));
+  const visibleActivities = filterByAuthor(filterBySearch(rawActivities));
+  const visibleTestimonials = filterByAuthor(filterBySearch(rawTestimonials));
 
   const unapprovedCount = [
     ...projects.filter(p => !p.approved && !p.rejected),
@@ -242,6 +376,14 @@ export default function App() {
     ...materials.filter(m => !m.approved && !m.rejected),
     ...activities.filter(a => !a.approved && !a.rejected)
   ].length;
+
+  const currentDetailItem = selectedDetailItem ? (() => {
+    const dbItem = projects.find(p => p.id === selectedDetailItem.id) ||
+                   works.find(w => w.id === selectedDetailItem.id) ||
+                   materials.find(m => m.id === selectedDetailItem.id) ||
+                   activities.find(a => a.id === selectedDetailItem.id);
+    return dbItem ? { ...selectedDetailItem, ...dbItem } : selectedDetailItem;
+  })() : null;
 
   return (
     <div className="flex flex-col min-h-screen bg-brand-bg text-brand-black overflow-x-hidden w-full max-w-full">
@@ -288,28 +430,29 @@ export default function App() {
             </button>
           </div>
         </div>
+
+        {/* Mobile Nav — inside the fixed header so it always sits directly below */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="xl:hidden overflow-hidden border-t border-brand-border bg-white shadow-lg"
+            >
+              <div className="px-4 py-6 flex flex-col gap-3">
+                <NavButton isMobile active={activeTab === 'about'} onClick={() => handleTabChange('about', true)}>Inicio</NavButton>
+                <NavButton isMobile active={activeTab === 'works'} onClick={() => handleTabChange('works', true)}>Creaciones estudiantiles</NavButton>
+                <NavButton isMobile active={activeTab === 'projects'} onClick={() => handleTabChange('projects', true)}>Proyectos</NavButton>
+                <NavButton isMobile active={activeTab === 'activities'} onClick={() => handleTabChange('activities', true)}>Actividades</NavButton>
+                <NavButton isMobile active={activeTab === 'materials'} onClick={() => handleTabChange('materials', true)}>Recursos</NavButton>
+                <NavButton isMobile active={activeTab === 'testimonials'} onClick={() => handleTabChange('testimonials', true)}>Testimonios</NavButton>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      {/* Mobile Nav */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="xl:hidden bg-white border-b border-brand-border overflow-hidden z-40"
-          >
-            <div className="px-4 py-6 flex flex-col gap-3">
-              <NavButton isMobile active={activeTab === 'about'} onClick={() => handleTabChange('about', true)}>Inicio</NavButton>
-              <NavButton isMobile active={activeTab === 'works'} onClick={() => handleTabChange('works', true)}>Creaciones estudiantiles</NavButton>
-              <NavButton isMobile active={activeTab === 'projects'} onClick={() => handleTabChange('projects', true)}>Proyectos</NavButton>
-              <NavButton isMobile active={activeTab === 'activities'} onClick={() => handleTabChange('activities', true)}>Actividades</NavButton>
-              <NavButton isMobile active={activeTab === 'materials'} onClick={() => handleTabChange('materials', true)}>Recursos</NavButton>
-              <NavButton isMobile active={activeTab === 'testimonials'} onClick={() => handleTabChange('testimonials', true)}>Testimonios</NavButton>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <main className="flex-grow flex flex-col pt-[57px] md:pt-[69px]">
         {/* Modern Intro Section (Landing style) */}
@@ -376,7 +519,7 @@ export default function App() {
                 </div>
                 <input 
                   type="text" 
-                  placeholder="Escribe palabras claves de lo que buscas"
+                  placeholder="Escribe palabras claves"
                   value={clientSearchTerm}
                   onChange={(e) => setClientSearchTerm(e.target.value)}
                   className="w-full bg-transparent border-none pl-12 pr-12 py-3.5 text-sm font-bold uppercase tracking-wide placeholder-gray-400 outline-none text-brand-black"
@@ -409,88 +552,201 @@ export default function App() {
                 transition={{ duration: 0.4 }}
                 className="space-y-16"
               >
-                {activeTab === 'projects' && (
-                  <div className="space-y-12">
-                    <FilterBar selected={selectedAsignatura} onSelect={setSelectedAsignatura} />
-                    {visibleProjects.filter(p => !selectedAsignatura || p.category === selectedAsignatura).length === 0 ? (
-                      <EmptyState text="No hay proyectos aprobados en esta asignatura todavía." />
-                    ) : (
-                      <RetroCarousel itemCount={visibleProjects.filter(p => !selectedAsignatura || p.category === selectedAsignatura).length}>
-                        {visibleProjects
-                          .filter(p => !selectedAsignatura || p.category === selectedAsignatura)
-                          .map((project, i) => (
+                {selectedAuthor && (
+                  <div className="flex items-center gap-3 bg-brand-red text-white border-4 border-brand-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-xs tracking-wider">
+                    <span>Filtrado por autor/a: "{selectedAuthor}"</span>
+                    <button 
+                      onClick={() => setSelectedAuthor(null)} 
+                      className="ml-auto bg-white text-brand-black px-3 py-1 text-[10px] hover:bg-brand-black hover:text-white transition-colors border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                    >
+                      Limpiar filtro
+                    </button>
+                  </div>
+                )}
+
+                {activeTab === 'projects' && (() => {
+                  const filteredProjects = visibleProjects.filter(p => !selectedAsignatura || p.category === selectedAsignatura);
+                  const displayedProjects = filteredProjects.slice(0, projectsLimit);
+                  return (
+                    <div className="space-y-12">
+                      <FilterBar selected={selectedAsignatura} onSelect={setSelectedAsignatura} />
+                      {filteredProjects.length === 0 ? (
+                        <EmptyState text="No hay proyectos aprobados en esta asignatura todavía." />
+                      ) : (
+                        <RetroCarousel itemCount={displayedProjects.length + (filteredProjects.length > projectsLimit ? 1 : 0)}>
+                          {displayedProjects.map((project, i) => (
                             <div key={project.id} className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start">
-                              <ProjectCard project={project} user={user} onOpenDetail={handleOpenDetail} accent={i % 3 === 0} />
+                              <ProjectCard 
+                                project={project} 
+                                user={user} 
+                                onOpenDetail={handleOpenDetail} 
+                                accent={i % 3 === 0} 
+                                onToggleLike={() => handleToggleLike('projects', project.id, project.likes)}
+                                isLiked={likedItems.includes(project.id)}
+                                onSelectAuthor={handleSelectAuthor}
+                                onShare={() => handleShare(project, 'projects')}
+                              />
                             </div>
-                          ))
-                        }
-                      </RetroCarousel>
-                    )}
-                  </div>
-                )}
+                          ))}
+                          {filteredProjects.length > projectsLimit && (
+                            <div className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start flex items-center justify-center pt-2">
+                              <button 
+                                onClick={() => setProjectsLimit(prev => prev + 6)}
+                                className="w-full min-h-[300px] border-4 border-dashed border-brand-black hover:border-brand-red bg-white hover:bg-neutral-50 flex flex-col items-center justify-center p-8 gap-4 group transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                              >
+                                <Plus className="w-12 h-12 text-brand-red group-hover:scale-110 transition-transform mr-1" />
+                                <span className="font-black text-sm uppercase tracking-wider text-brand-black">Cargar Más</span>
+                                <span className="text-xs text-gray-500 font-bold">({filteredProjects.length - projectsLimit} más)</span>
+                              </button>
+                            </div>
+                          )}
+                        </RetroCarousel>
+                      )}
+                    </div>
+                  );
+                })()}
 
-                {activeTab === 'works' && (
-                  <div className="space-y-12">
-                    <CourseFilterBar selected={selectedCourse} onSelect={setSelectedCourse} />
-                    {visibleWorks.filter(w => !selectedCourse || w.year === selectedCourse).length === 0 ? (
-                      <EmptyState text="No hay trabajos aprobados en este curso." />
-                    ) : (
-                      <RetroCarousel itemCount={visibleWorks.filter(w => !selectedCourse || w.year === selectedCourse).length}>
-                        {visibleWorks
-                          .filter(w => !selectedCourse || w.year === selectedCourse)
-                          .map((work, i) => (
+                {activeTab === 'works' && (() => {
+                  const filteredWorks = visibleWorks.filter(w => (!selectedCourse || w.year === selectedCourse) && (!selectedAsignatura || w.workType === selectedAsignatura));
+                  const displayedWorks = filteredWorks.slice(0, worksLimit);
+                  return (
+                    <div className="space-y-12">
+                      <div className="flex flex-col md:flex-row gap-6 mb-4">
+                        <div className="flex-1 space-y-2">
+                          <span className="text-[10px] font-mono tracking-widest font-black uppercase text-brand-red block mb-1">Filtrar por Curso:</span>
+                          <CourseFilterBar selected={selectedCourse} onSelect={setSelectedCourse} />
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <span className="text-[10px] font-mono tracking-widest font-black uppercase text-brand-red block mb-1">Filtrar por Asignatura:</span>
+                          <FilterBar selected={selectedAsignatura} onSelect={setSelectedAsignatura} />
+                        </div>
+                      </div>
+                      {filteredWorks.length === 0 ? (
+                        <EmptyState text="No hay trabajos aprobados que coincidan con los filtros." />
+                      ) : (
+                        <RetroCarousel itemCount={displayedWorks.length + (filteredWorks.length > worksLimit ? 1 : 0)}>
+                          {displayedWorks.map((work, i) => (
                             <div key={work.id} className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start">
-                              <WorkCard work={work} user={user} onOpenDetail={handleOpenDetail} dark={false} />
+                              <WorkCard 
+                                work={work} 
+                                user={user} 
+                                onOpenDetail={handleOpenDetail} 
+                                dark={false} 
+                                onToggleLike={() => handleToggleLike('studentWorks', work.id, work.likes)}
+                                isLiked={likedItems.includes(work.id)}
+                                onSelectAuthor={handleSelectAuthor}
+                                onShare={() => handleShare(work, 'works')}
+                              />
                             </div>
-                          ))
-                        }
-                      </RetroCarousel>
-                    )}
-                  </div>
-                )}
+                          ))}
+                          {filteredWorks.length > worksLimit && (
+                            <div className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start flex items-center justify-center pt-2">
+                              <button 
+                                onClick={() => setWorksLimit(prev => prev + 6)}
+                                className="w-full min-h-[300px] border-4 border-dashed border-brand-black hover:border-brand-red bg-white hover:bg-neutral-50 flex flex-col items-center justify-center p-8 gap-4 group transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                              >
+                                <Plus className="w-12 h-12 text-brand-red group-hover:scale-110 transition-transform mr-1" />
+                                <span className="font-black text-sm uppercase tracking-wider text-brand-black">Cargar Más</span>
+                                <span className="text-xs text-gray-500 font-bold">({filteredWorks.length - worksLimit} más)</span>
+                              </button>
+                            </div>
+                          )}
+                        </RetroCarousel>
+                      )}
+                    </div>
+                  );
+                })()}
 
-                {activeTab === 'materials' && (
-                  <div className="space-y-12">
-                    <FilterBar selected={selectedAsignatura} onSelect={setSelectedAsignatura} />
-                    {visibleMaterials.filter(m => !selectedAsignatura || m.subject === selectedAsignatura).length === 0 ? (
-                      <EmptyState text="No hay recursos aprobados en esta asignatura." />
-                    ) : (
-                      <RetroCarousel itemCount={visibleMaterials.filter(m => !selectedAsignatura || m.subject === selectedAsignatura).length}>
-                        {visibleMaterials
-                          .filter(m => !selectedAsignatura || m.subject === selectedAsignatura)
-                          .map(material => (
+                {activeTab === 'materials' && (() => {
+                  const filteredMaterials = visibleMaterials.filter(m => !selectedAsignatura || m.subject === selectedAsignatura);
+                  const displayedMaterials = filteredMaterials.slice(0, materialsLimit);
+                  return (
+                    <div className="space-y-12">
+                      <FilterBar selected={selectedAsignatura} onSelect={setSelectedAsignatura} />
+                      {filteredMaterials.length === 0 ? (
+                        <EmptyState text="No hay recursos aprobados en esta asignatura." />
+                      ) : (
+                        <RetroCarousel itemCount={displayedMaterials.length + (filteredMaterials.length > materialsLimit ? 1 : 0)}>
+                          {displayedMaterials.map(material => (
                             <div key={material.id} className="w-[75vw] sm:w-[280px] md:w-[300px] lg:w-[320px] shrink-0 snap-start">
-                              <MaterialCard material={material} user={user} onOpenDetail={handleOpenDetail} />
+                              <MaterialCard 
+                                material={material} 
+                                user={user} 
+                                onOpenDetail={handleOpenDetail} 
+                                onToggleLike={() => handleToggleLike('materials', material.id, material.likes)}
+                                isLiked={likedItems.includes(material.id)}
+                                onSelectAuthor={handleSelectAuthor}
+                                onShare={() => handleShare(material, 'materials')}
+                              />
                             </div>
-                          ))
-                        }
-                      </RetroCarousel>
-                    )}
-                  </div>
-                )}
+                          ))}
+                          {filteredMaterials.length > materialsLimit && (
+                            <div className="w-[75vw] sm:w-[280px] md:w-[300px] lg:w-[320px] shrink-0 snap-start flex items-center justify-center pt-2">
+                              <button 
+                                onClick={() => setMaterialsLimit(prev => prev + 6)}
+                                className="w-full min-h-[220px] border-4 border-dashed border-brand-black hover:border-brand-red bg-white hover:bg-neutral-50 flex flex-col items-center justify-center p-6 gap-3 group transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                              >
+                                <Plus className="w-10 h-10 text-brand-red group-hover:scale-110 transition-transform mr-1" />
+                                <span className="font-black text-xs uppercase tracking-wider text-brand-black">Cargar Más</span>
+                                <span className="text-[10px] text-gray-500 font-bold">({filteredMaterials.length - materialsLimit} más)</span>
+                              </button>
+                            </div>
+                          )}
+                        </RetroCarousel>
+                      )}
+                    </div>
+                  );
+                })()}
 
-                {activeTab === 'activities' && (
-                  <div className="space-y-12">
-                    <FilterBar selected={selectedAsignatura} onSelect={setSelectedAsignatura} />
-                    {visibleActivities.filter(a => !selectedAsignatura || a.category === selectedAsignatura || (selectedAsignatura === 'Otros' && !a.category)).length === 0 ? (
-                      <EmptyState text="No hay actividades comunitarias cargadas para esta asignatura." />
-                    ) : (
-                      <RetroCarousel itemCount={visibleActivities.filter(a => !selectedAsignatura || a.category === selectedAsignatura || (selectedAsignatura === 'Otros' && !a.category)).length}>
-                        {visibleActivities
-                          .filter(a => !selectedAsignatura || a.category === selectedAsignatura || (selectedAsignatura === 'Otros' && !a.category))
-                          .map(activity => (
+                {activeTab === 'activities' && (() => {
+                  const filteredActivities = visibleActivities.filter(a => !selectedAsignatura || a.category === selectedAsignatura || (selectedAsignatura === 'Otros' && !a.category));
+                  const displayedActivities = filteredActivities.slice(0, activitiesLimit);
+                  return (
+                    <div className="space-y-12">
+                      <FilterBar selected={selectedAsignatura} onSelect={setSelectedAsignatura} />
+                      {filteredActivities.length === 0 ? (
+                        <EmptyState text="No hay actividades comunitarias cargadas para esta asignatura." />
+                      ) : (
+                        <RetroCarousel itemCount={displayedActivities.length + (filteredActivities.length > activitiesLimit ? 1 : 0)}>
+                          {displayedActivities.map(activity => (
                             <div key={activity.id} className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start">
-                              <ActivityCard activity={activity} user={user} onOpenDetail={handleOpenDetail} />
+                              <ActivityCard 
+                                activity={activity} 
+                                user={user} 
+                                onOpenDetail={handleOpenDetail} 
+                                onToggleLike={() => handleToggleLike('activities', activity.id, activity.likes)}
+                                isLiked={likedItems.includes(activity.id)}
+                                onSelectAuthor={handleSelectAuthor}
+                                onShare={() => handleShare(activity, 'activities')}
+                              />
                             </div>
-                          ))
-                        }
-                      </RetroCarousel>
-                    )}
-                  </div>
-                )}
+                          ))}
+                          {filteredActivities.length > activitiesLimit && (
+                            <div className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start flex items-center justify-center pt-2">
+                              <button 
+                                onClick={() => setActivitiesLimit(prev => prev + 6)}
+                                className="w-full min-h-[300px] border-4 border-dashed border-brand-black hover:border-brand-red bg-white hover:bg-neutral-50 flex flex-col items-center justify-center p-8 gap-4 group transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                              >
+                                <Plus className="w-12 h-12 text-brand-red group-hover:scale-110 transition-transform mr-1" />
+                                <span className="font-black text-sm uppercase tracking-wider text-brand-black">Cargar Más</span>
+                                <span className="text-xs text-gray-500 font-bold">({filteredActivities.length - activitiesLimit} más)</span>
+                              </button>
+                            </div>
+                          )}
+                        </RetroCarousel>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {activeTab === 'testimonials' && (
-                  <TestimonialsView testimonials={visibleTestimonials} user={user} />
+                  <TestimonialsView 
+                    testimonials={visibleTestimonials} 
+                    user={user} 
+                    onToggleLike={(id, likes) => handleToggleLike('testimonials', id, likes)}
+                    likedItems={likedItems}
+                    onShare={(item) => handleShare(item, 'testimonials')}
+                  />
                 )}
 
                 {activeTab === 'about' && (
@@ -501,6 +757,10 @@ export default function App() {
                       visibleMaterials={visibleMaterials}
                       visibleActivities={visibleActivities}
                       onOpenDetail={handleOpenDetail}
+                      onToggleLike={(item) => handleToggleLike(item.parentType, item.id, item.likes)}
+                      likedItems={likedItems}
+                      onShare={(item) => handleShare(item, item.parentType)}
+                      onSelectAuthor={handleSelectAuthor}
                     />
                     <AboutSection />
                   </div>
@@ -610,11 +870,29 @@ export default function App() {
         </div>
       </footer>
       <AnimatePresence>
-        {selectedDetailItem && (
+        {currentDetailItem && (
           <DetailModal 
-            item={selectedDetailItem} 
+            item={currentDetailItem} 
             onClose={() => setSelectedDetailItem(null)} 
+            onToggleLike={() => handleToggleLike(currentDetailItem.parentType || 'projects', currentDetailItem.id, currentDetailItem.likes)}
+            isLiked={likedItems.includes(currentDetailItem.id)}
+            onShare={() => handleShare(currentDetailItem, currentDetailItem.parentType || 'projects')}
+            onSelectAuthor={(author) => handleSelectAuthor(author, currentDetailItem.parentType)}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-8 right-8 z-[200] bg-brand-black text-white px-6 py-4 border-4 border-brand-black shadow-[4px_4px_0px_0px_rgba(191,49,49,1)] uppercase font-black text-xs tracking-wider flex items-center gap-3"
+          >
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-red animate-pulse shrink-0" />
+            <span>{toastMessage}</span>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -891,10 +1169,18 @@ function CardMediaPreview({
 
 function DetailModal({ 
   item, 
-  onClose 
+  onClose,
+  onToggleLike,
+  isLiked = false,
+  onShare,
+  onSelectAuthor
 }: { 
   item: any; 
   onClose: () => void; 
+  onToggleLike?: () => void;
+  isLiked?: boolean;
+  onShare?: () => void;
+  onSelectAuthor?: (author: string) => void;
 }) {
   return (
     <div className="fixed inset-0 bg-brand-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -945,24 +1231,74 @@ function DetailModal({
             {item.description}
           </div>
 
+          {/* Like & Share Bar */}
+          {onToggleLike && onShare && (
+            <div className="flex items-center gap-3 py-1">
+              <button 
+                onClick={onToggleLike}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+                  isLiked 
+                    ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" 
+                    : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+                )}
+              >
+                <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
+                <span>{item.likes || 0}</span>
+              </button>
+
+              <button 
+                onClick={onShare}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Compartir</span>
+              </button>
+            </div>
+          )}
+
           {/* Author/Creator details */}
           <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-brand-border">
             {item.studentName && (
               <div className="flex justify-between items-center text-[10px] sm:text-xs">
                 <span className="text-gray-400 uppercase font-mono">Autor/a o Estudiante:</span>
-                <span className="font-bold text-brand-black">{item.studentName} {item.year ? `(${item.year})` : ''}</span>
+                <span 
+                  onClick={() => {
+                    onSelectAuthor && onSelectAuthor(item.studentName);
+                    onClose();
+                  }}
+                  className="font-bold text-brand-black hover:text-brand-red cursor-pointer hover:underline"
+                >
+                  {item.studentName} {item.year ? `(${item.year})` : ''}
+                </span>
               </div>
             )}
             {item.teacherName && (
               <div className="flex justify-between items-center text-[10px] sm:text-xs">
                 <span className="text-gray-400 uppercase font-mono">Profesor/a:</span>
-                <span className="font-bold text-brand-black">{item.teacherName}</span>
+                <span 
+                  onClick={() => {
+                    onSelectAuthor && onSelectAuthor(item.teacherName);
+                    onClose();
+                  }}
+                  className="font-bold text-brand-black hover:text-brand-red cursor-pointer hover:underline"
+                >
+                  {item.teacherName}
+                </span>
               </div>
             )}
             {item.authorName && !item.studentName && !item.teacherName && (
               <div className="flex justify-between items-center text-[10px] sm:text-xs">
                 <span className="text-gray-400 uppercase font-mono">Compartido por:</span>
-                <span className="font-bold text-brand-black">{item.authorName}</span>
+                <span 
+                  onClick={() => {
+                    onSelectAuthor && onSelectAuthor(item.authorName);
+                    onClose();
+                  }}
+                  className="font-bold text-brand-black hover:text-brand-red cursor-pointer hover:underline"
+                >
+                  {item.authorName}
+                </span>
               </div>
             )}
           </div>
@@ -1019,9 +1355,24 @@ interface ProjectCardProps {
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
+  onToggleLike?: () => void;
+  isLiked?: boolean;
+  onSelectAuthor?: (author: string, type?: string) => void;
+  onShare?: () => void;
 }
 
-function ProjectCard({ project, user, onOpenDetail, accent = false, isSelected, onSelect }: ProjectCardProps) {
+function ProjectCard({ 
+  project, 
+  user, 
+  onOpenDetail, 
+  accent = false, 
+  isSelected, 
+  onSelect,
+  onToggleLike,
+  isLiked = false,
+  onSelectAuthor,
+  onShare
+}: ProjectCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -1152,8 +1503,44 @@ function ProjectCard({ project, user, onOpenDetail, accent = false, isSelected, 
             </PolishedButton>
           </div>
         )}
-        <div className="flex justify-between items-center text-[8px] font-mono opacity-50 uppercase tracking-widest">
-          <div>
+        <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+              isLiked 
+                ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
+                : accent 
+                  ? "bg-brand-black text-white hover:bg-neutral-800 border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5" 
+                  : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+            )}
+          >
+            <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
+            <span>{project.likes || 0}</span>
+          </button>
+
+          <button 
+            onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+              accent 
+                ? "bg-brand-black text-white hover:bg-neutral-800 border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5" 
+                : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+            )}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Compartir</span>
+          </button>
+        </div>
+
+        <div className="flex justify-between items-center text-[8px] font-mono uppercase tracking-widest mt-2">
+          <div 
+            onClick={(e) => { e.stopPropagation(); onSelectAuthor && onSelectAuthor(project.authorName || 'Anónimo', 'projects'); }}
+            className={cn(
+              "cursor-pointer hover:underline font-bold transition-colors",
+              accent ? "text-gray-300 hover:text-brand-red" : "text-gray-500 hover:text-brand-red"
+            )}
+          >
             Por: {project.authorName || 'Anónimo'}
           </div>
           <div className="flex items-center gap-4">
@@ -1185,9 +1572,24 @@ interface WorkCardProps {
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
+  onToggleLike?: () => void;
+  isLiked?: boolean;
+  onSelectAuthor?: (author: string, type?: string) => void;
+  onShare?: () => void;
 }
 
-function WorkCard({ work, user, onOpenDetail, dark = false, isSelected, onSelect }: WorkCardProps) {
+function WorkCard({ 
+  work, 
+  user, 
+  onOpenDetail, 
+  dark = false, 
+  isSelected, 
+  onSelect,
+  onToggleLike,
+  isLiked = false,
+  onSelectAuthor,
+  onShare
+}: WorkCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -1355,10 +1757,43 @@ function WorkCard({ work, user, onOpenDetail, dark = false, isSelected, onSelect
             </button>
           </div>
         )}
+        <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+              isLiked 
+                ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
+                : dark 
+                  ? "bg-brand-black text-white hover:bg-neutral-800 border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5" 
+                  : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+            )}
+          >
+            <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
+            <span>{work.likes || 0}</span>
+          </button>
+
+          <button 
+            onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+              dark 
+                ? "bg-brand-black text-white hover:bg-neutral-800 border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5" 
+                : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+            )}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Compartir</span>
+          </button>
+        </div>
+
         <div className="flex justify-between items-center pt-4 border-t border-brand-border">
-          <div className="flex flex-col">
-            <span className={cn("text-[9px] font-mono tracking-widest uppercase opacity-40", dark ? "text-white" : "text-gray-500")}>Escrito por</span>
-            <span className={cn("text-xs font-black uppercase mt-1", dark ? "text-brand-red" : "text-brand-black")}>{work.studentName}</span>
+          <div 
+            onClick={(e) => { e.stopPropagation(); onSelectAuthor && onSelectAuthor(work.studentName, 'works'); }}
+            className="flex flex-col cursor-pointer group/author"
+          >
+            <span className={cn("text-[9px] font-mono tracking-widest uppercase opacity-40 group-hover/author:text-brand-red", dark ? "text-white" : "text-gray-500")}>Escrito por</span>
+            <span className={cn("text-xs font-black uppercase mt-1 group-hover/author:underline group-hover/author:text-brand-red", dark ? "text-brand-red" : "text-brand-black")}>{work.studentName}</span>
           </div>
           <div className="flex items-center gap-4">
             {user && (work.authorId === user.uid || isAdmin) && (
@@ -1388,9 +1823,23 @@ interface MaterialCardProps {
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
+  onToggleLike?: () => void;
+  isLiked?: boolean;
+  onSelectAuthor?: (author: string, type?: string) => void;
+  onShare?: () => void;
 }
 
-function MaterialCard({ material, user, onOpenDetail, isSelected, onSelect }: MaterialCardProps) {
+function MaterialCard({ 
+  material, 
+  user, 
+  onOpenDetail, 
+  isSelected, 
+  onSelect,
+  onToggleLike,
+  isLiked = false,
+  onSelectAuthor,
+  onShare
+}: MaterialCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -1485,13 +1934,16 @@ function MaterialCard({ material, user, onOpenDetail, isSelected, onSelect }: Ma
           )}
         </div>
 
-        <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50 border border-brand-border">
-          <div className="w-9 h-9 border-2 border-brand-black bg-brand-red text-white flex items-center justify-center font-bold text-sm uppercase font-mono">
+        <div 
+          onClick={(e) => { e.stopPropagation(); onSelectAuthor && onSelectAuthor(material.teacherName.startsWith('Prof.') ? material.teacherName : `Prof. ${material.teacherName}`, 'materials'); }}
+          className="flex items-center gap-3 mb-6 p-3 bg-gray-50 border border-brand-border cursor-pointer hover:bg-neutral-100 group/author"
+        >
+          <div className="w-9 h-9 border-2 border-brand-black bg-brand-red text-white flex items-center justify-center font-bold text-sm uppercase font-mono group-hover/author:scale-105 transition-transform">
             {material.teacherName.charAt(0)}
           </div>
           <div className="flex flex-col">
-            <span className="text-[9px] font-mono tracking-widest font-bold uppercase text-gray-400">Publicado por</span>
-            <span className="text-xs font-black uppercase text-brand-black">
+            <span className="text-[9px] font-mono tracking-widest font-bold uppercase text-gray-400 group-hover/author:text-brand-red">Publicado por</span>
+            <span className="text-xs font-black uppercase text-brand-black group-hover/author:text-brand-red group-hover/author:underline">
               {material.teacherName.startsWith('Prof.') ? material.teacherName : `Prof. ${material.teacherName}`}
             </span>
           </div>
@@ -1532,6 +1984,29 @@ function MaterialCard({ material, user, onOpenDetail, isSelected, onSelect }: Ma
             </button>
           </div>
         )}
+        <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-auto mb-4">
+          <button 
+            onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+              isLiked 
+                ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
+                : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+            )}
+          >
+            <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
+            <span>{material.likes || 0}</span>
+          </button>
+
+          <button 
+            onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Compartir</span>
+          </button>
+        </div>
+
         <div className="flex flex-col gap-2 pt-4 border-t border-brand-border">
           <div className="flex items-center gap-3">
             <PolishedButton 
@@ -1566,9 +2041,23 @@ interface ActivityCardProps {
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
+  onToggleLike?: () => void;
+  isLiked?: boolean;
+  onSelectAuthor?: (author: string, type?: string) => void;
+  onShare?: () => void;
 }
 
-function ActivityCard({ activity, user, onOpenDetail, isSelected, onSelect }: ActivityCardProps) {
+function ActivityCard({ 
+  activity, 
+  user, 
+  onOpenDetail, 
+  isSelected, 
+  onSelect,
+  onToggleLike,
+  isLiked = false,
+  onSelectAuthor,
+  onShare
+}: ActivityCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -1748,6 +2237,29 @@ function ActivityCard({ activity, user, onOpenDetail, isSelected, onSelect }: Ac
               </button>
             </div>
           )}
+
+          <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-2 mb-2">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+                isLiked 
+                  ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
+                  : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+              )}
+            >
+              <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
+              <span>{activity.likes || 0}</span>
+            </button>
+
+            <button 
+              onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Compartir</span>
+            </button>
+          </div>
 
           <div className="flex gap-2 pt-4 border-t border-brand-border justify-between items-center w-full">
             <PolishedButton 
@@ -2251,7 +2763,19 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
-function TestimonialsView({ testimonials, user }: { testimonials: Testimonial[]; user: any }) {
+function TestimonialsView({ 
+  testimonials, 
+  user,
+  onToggleLike,
+  likedItems = [],
+  onShare
+}: { 
+  testimonials: Testimonial[]; 
+  user: any;
+  onToggleLike?: (id: string, currentLikes: number) => void;
+  likedItems?: string[];
+  onShare?: (item: any) => void;
+}) {
   const [formData, setFormData] = useState({ name: '', role: 'Estudiante', content: '' });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2329,6 +2853,30 @@ function TestimonialsView({ testimonials, user }: { testimonials: Testimonial[];
                 <p className="text-sm text-gray-800 font-medium leading-relaxed pt-3">
                   {t.content}
                 </p>
+              </div>
+
+              {/* Likes & Share Bar */}
+              <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-auto">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(t.id, t.likes || 0); }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+                    likedItems.includes(t.id) 
+                      ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" 
+                      : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+                  )}
+                >
+                  <Heart className={cn("w-3.5 h-3.5", likedItems.includes(t.id) ? "fill-white" : "")} />
+                  <span>{t.likes || 0}</span>
+                </button>
+
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onShare && onShare(t); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Compartir</span>
+                </button>
               </div>
             </motion.div>
           ))}
@@ -2466,10 +3014,10 @@ function AboutSection() {
         </div>
       </section>
 
-      <section className="grid lg:grid-cols-3 gap-1 px-1 bg-brand-border">
+      <section className="grid lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-brand-border border border-brand-border">
         <AboutStat label="Justicia" value="Equidad" desc="Acceso al conocimiento pedagógico." />
         <AboutStat label="Voz" value="Identidad" desc="El estudiantado como autor de su historia." />
-        <AboutStat label="Red" value="Comunidad" desc="El profesorado compartiendo para transformar." last />
+        <AboutStat label="Red" value="Comunidad" desc="El profesorado compartiendo para transformar." />
       </section>
 
       <section className="bg-brand-red text-white p-16 md:p-24 rotate-1">
@@ -2559,11 +3107,11 @@ function AboutSection() {
   );
 }
 
-function AboutStat({ label, value, desc, last = false }: { label: string, value: string, desc: string, last?: boolean }) {
+function AboutStat({ label, value, desc }: { label: string, value: string, desc: string, last?: boolean }) {
   return (
-    <div className={`bg-brand-bg p-12 hover:bg-white transition-colors${last ? ' pl-16' : ''}`}>
+    <div className="bg-brand-bg p-6 lg:p-8 hover:bg-white transition-colors min-w-0">
       <div className="text-[10px] font-bold uppercase tracking-widest text-brand-red mb-4">{label}</div>
-      <div className="text-5xl font-bold tracking-tighter uppercase mb-4">{value}</div>
+      <div className="text-5xl font-bold tracking-tighter uppercase mb-4 whitespace-nowrap">{value}</div>
       <p className="text-sm text-gray-500 leading-relaxed font-medium">{desc}</p>
     </div>
   );
@@ -3184,6 +3732,7 @@ interface CompiledItem {
   attachmentName?: string;
   authorName?: string;
   createdAt?: any;
+  likes?: number;
 }
 
 function ResumenPublicaciones({
@@ -3191,13 +3740,21 @@ function ResumenPublicaciones({
   visibleProjects,
   visibleMaterials,
   visibleActivities,
-  onOpenDetail
+  onOpenDetail,
+  onToggleLike,
+  likedItems = [],
+  onShare,
+  onSelectAuthor
 }: {
   visibleWorks: any[];
   visibleProjects: any[];
   visibleMaterials: any[];
   visibleActivities: any[];
   onOpenDetail: (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => void;
+  onToggleLike?: (item: CompiledItem) => void;
+  likedItems?: string[];
+  onShare?: (item: CompiledItem) => void;
+  onSelectAuthor?: (author: string, type?: string) => void;
 }) {
   // Combine all actual database approved items
   let items: CompiledItem[] = [
@@ -3214,7 +3771,8 @@ function ResumenPublicaciones({
       attachmentType: p.attachmentType,
       attachmentName: p.attachmentName,
       authorName: p.authorName,
-      createdAt: p.createdAt
+      createdAt: p.createdAt,
+      likes: p.likes
     })),
     ...visibleWorks.map(w => ({ 
       id: w.id, 
@@ -3231,7 +3789,8 @@ function ResumenPublicaciones({
       attachmentUrl: w.attachmentUrl,
       attachmentType: w.attachmentType,
       attachmentName: w.attachmentName,
-      createdAt: w.createdAt
+      createdAt: w.createdAt,
+      likes: w.likes
     })),
     ...visibleMaterials.map(m => ({ 
       id: m.id, 
@@ -3245,7 +3804,8 @@ function ResumenPublicaciones({
       attachmentUrl: m.attachmentUrl,
       attachmentType: m.attachmentType,
       attachmentName: m.attachmentName,
-      createdAt: m.createdAt
+      createdAt: m.createdAt,
+      likes: m.likes
     })),
     ...visibleActivities.map(a => ({ 
       id: a.id, 
@@ -3259,7 +3819,8 @@ function ResumenPublicaciones({
       attachmentUrl: a.attachmentUrl,
       attachmentType: a.attachmentType,
       attachmentName: a.attachmentName,
-      createdAt: a.createdAt
+      createdAt: a.createdAt,
+      likes: a.likes
     }))
   ];
 
@@ -3356,7 +3917,7 @@ function ResumenPublicaciones({
           <div
             key={item.id}
             onClick={() => handleCardClick(item)}
-            className="flex-shrink-0 w-[280px] sm:w-[320px] flex flex-col justify-between p-6 border-4 border-brand-black bg-white hover:border-brand-red cursor-pointer transition-all duration-300 hover:translate-y-[-6px] hover:translate-x-[-2px] relative group shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_rgba(188,33,34,1)] min-h-[340px] snap-start"
+            className="flex-shrink-0 w-[280px] sm:w-[320px] flex flex-col justify-between p-6 border-4 border-brand-black bg-white hover:border-brand-red cursor-pointer transition-all duration-300 hover:translate-y-[-6px] hover:translate-x-[-2px] relative group shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_rgba(188,33,34,1)] min-h-[360px] snap-start"
           >
             {item.isDummy && (
               <span className="absolute top-2 right-2 bg-yellow-100 border border-yellow-400 text-yellow-800 text-[8px] font-bold px-1 py-0.5 rounded">
@@ -3387,17 +3948,59 @@ function ResumenPublicaciones({
               </p>
             </div>
 
-            <div className="pt-4 border-t border-gray-100 flex flex-col gap-2 mt-6">
+            {/* Like & Share Bar */}
+            {!item.isDummy && onToggleLike && onShare && (
+              <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-auto mb-2">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onToggleLike(item); }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
+                    likedItems.includes(item.id) 
+                      ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
+                      : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+                  )}
+                >
+                  <Heart className={cn("w-3 h-3", likedItems.includes(item.id) ? "fill-white" : "")} />
+                  <span>{item.likes || 0}</span>
+                </button>
+
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onShare(item); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span>Compartir</span>
+                </button>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-gray-100 flex flex-col gap-2 mt-2">
               {item.studentName && (
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-gray-400 uppercase font-mono">Creador:</span>
-                  <span className="font-bold text-brand-black text-right line-clamp-1">{item.studentName} {item.year ? `(${item.year})` : ''}</span>
+                <div 
+                  onClick={(e) => { 
+                    if (!item.isDummy) {
+                      e.stopPropagation();
+                      onSelectAuthor && onSelectAuthor(item.studentName!, 'works');
+                    }
+                  }}
+                  className={cn("flex justify-between items-center text-[10px]", !item.isDummy && "cursor-pointer hover:text-brand-red hover:underline group/author")}
+                >
+                  <span className="text-gray-400 uppercase font-mono group-hover/author:text-brand-red">Creador:</span>
+                  <span className="font-bold text-brand-black text-right line-clamp-1 group-hover/author:text-brand-red">{item.studentName} {item.year ? `(${item.year})` : ''}</span>
                 </div>
               )}
               {item.teacherName && (
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-gray-400 uppercase font-mono">Prof.:</span>
-                  <span className="font-bold text-brand-black text-right line-clamp-1">{item.teacherName}</span>
+                <div 
+                  onClick={(e) => {
+                    if (!item.isDummy) {
+                      e.stopPropagation();
+                      onSelectAuthor && onSelectAuthor(item.teacherName!, 'materials');
+                    }
+                  }}
+                  className={cn("flex justify-between items-center text-[10px]", !item.isDummy && "cursor-pointer hover:text-brand-red hover:underline group/author")}
+                >
+                  <span className="text-gray-400 uppercase font-mono group-hover/author:text-brand-red">Prof.:</span>
+                  <span className="font-bold text-brand-black text-right line-clamp-1 group-hover/author:text-brand-red">{item.teacherName}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-[10px] text-brand-red font-bold uppercase tracking-wider pt-2 group-hover:underline">
