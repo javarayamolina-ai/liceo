@@ -926,6 +926,16 @@ function DetailModal({
             )}
           </div>
 
+          <div className="pt-4 border-t-2 border-dashed border-gray-200 flex justify-between items-center text-[9px] font-mono text-gray-400 uppercase">
+            <span>Referencia ID: {item.id.substring(0, 8)}</span>
+            <span>Liceo EPS</span>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 interface ProjectCardProps {
   project: any;
   user: any;
@@ -1090,6 +1100,8 @@ function ProjectCard({ project, user, onOpenDetail, accent = false, isSelected, 
       </div>
     </PolishedCard>
   );
+}
+
 interface WorkCardProps {
   work: any;
   user: any;
