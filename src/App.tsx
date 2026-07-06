@@ -64,6 +64,19 @@ export default function App() {
   const [showForm, setShowForm] = useState(false);
   const [selectedAsignatura, setSelectedAsignatura] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
+
+  const handleOpenDetail = (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => {
+    const categoryLabel = type === 'projects' ? 'PROYECTOS' : type === 'works' ? 'CREACIONES ESTUDIANTILES' : type === 'materials' ? 'RECURSOS' : 'ACTIVIDADES';
+    const categoryValue = type === 'projects' ? item.category : type === 'works' ? item.workType : type === 'materials' ? item.subject : item.category;
+    setSelectedDetailItem({
+      ...item,
+      categoryLabel,
+      categoryValue,
+      parentType: type,
+      description: type === 'works' ? (item.content || item.description) : (item.description || item.content),
+    });
+  };
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isDemoAdmin, setIsDemoAdmin] = useState(false);
 
@@ -430,7 +443,7 @@ export default function App() {
                       visibleProjects={visibleProjects}
                       visibleMaterials={visibleMaterials}
                       visibleActivities={visibleActivities}
-                      setActiveTab={setActiveTab}
+                      onOpenDetail={handleOpenDetail}
                     />
                     <AboutSection />
                   </div>
@@ -539,6 +552,14 @@ export default function App() {
           )}
         </div>
       </footer>
+      <AnimatePresence>
+        {selectedDetailItem && (
+          <DetailModal 
+            item={selectedDetailItem} 
+            onClose={() => setSelectedDetailItem(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -711,6 +732,127 @@ function CardMediaPreview({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+function DetailModal({ 
+  item, 
+  onClose 
+}: { 
+  item: any; 
+  onClose: () => void; 
+}) {
+  return (
+    <div className="fixed inset-0 bg-brand-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      {/* Click outside to close */}
+      <div className="absolute inset-0" onClick={onClose} />
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="relative bg-white text-brand-black max-w-2xl w-full border-4 border-brand-black p-6 sm:p-8 z-10 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[90vh] overflow-y-auto"
+      >
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 text-gray-400 hover:text-brand-red p-2 transition-colors cursor-pointer z-20 border-2 border-brand-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+          title="Cerrar"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="space-y-6 mt-4">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-brand-red" />
+            <span className="text-[10px] font-mono tracking-widest font-extrabold text-brand-red uppercase">
+              {item.categoryLabel}
+            </span>
+            {item.categoryValue && (
+              <span className="inline-block px-2 py-0.5 text-[8px] font-extrabold uppercase bg-brand-black text-white font-mono tracking-widest ml-2 leading-none">
+                {item.categoryValue}
+              </span>
+            )}
+          </div>
+
+          <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight leading-none text-brand-black border-b-4 border-brand-black pb-4 pr-10">
+            {item.title}
+          </h3>
+
+          {/* Visual preview of media */}
+          <CardMediaPreview 
+            attachmentUrl={item.attachmentUrl} 
+            attachmentType={item.attachmentType} 
+            attachmentName={item.attachmentName}
+            imageUrl={item.imageUrl}
+          />
+
+          <div className="p-5 bg-brand-bg border-l-4 border-brand-red font-sans text-gray-900 text-sm leading-relaxed whitespace-pre-line font-medium shadow-[2px_2px_0px_0px_rgba(0,0,0,0.05)]">
+            {item.description}
+          </div>
+
+          {/* Author/Creator details */}
+          <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-brand-border">
+            {item.studentName && (
+              <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                <span className="text-gray-400 uppercase font-mono">Autor/a o Estudiante:</span>
+                <span className="font-bold text-brand-black">{item.studentName} {item.year ? `(${item.year})` : ''}</span>
+              </div>
+            )}
+            {item.teacherName && (
+              <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                <span className="text-gray-400 uppercase font-mono">Profesor/a cargo:</span>
+                <span className="font-bold text-brand-black">{item.teacherName}</span>
+              </div>
+            )}
+            {item.authorName && !item.studentName && !item.teacherName && (
+              <div className="flex justify-between items-center text-[10px] sm:text-xs">
+                <span className="text-gray-400 uppercase font-mono">Compartido por:</span>
+                <span className="font-bold text-brand-black">{item.authorName}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Links and Attachments */}
+          <div className="flex flex-wrap gap-4 pt-4 border-t border-brand-border">
+            {item.driveLink && (
+              <a 
+                href={item.driveLink} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[10px] font-bold uppercase border-b-2 text-blue-600 border-blue-600 hover:text-brand-black hover:border-brand-black"
+              >
+                <Link2 className="w-4 h-4" /> Abrir en Google Drive
+              </a>
+            )}
+            {item.link && (
+              <a 
+                href={item.link.startsWith('http') ? item.link : `https://${item.link}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[10px] font-bold uppercase border-b-2 text-blue-600 border-blue-600 hover:text-brand-black hover:border-brand-black"
+              >
+                <Link2 className="w-4 h-4" /> Fuente Digital
+              </a>
+            )}
+            {item.attachmentUrl && (
+              <a 
+                href={item.attachmentUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[10px] font-bold uppercase border-b-2 text-green-700 border-green-700 hover:text-brand-black hover:border-brand-black"
+              >
+                <Paperclip className="w-4 h-4" /> Descargar Archivo Adjunto
+              </a>
+            )}
+          </div>
+
+          <div className="pt-4 border-t-2 border-dashed border-gray-200 flex justify-between items-center text-[9px] font-mono text-gray-400 uppercase">
+            <span>Referencia ID: {item.id.substring(0, 8)}</span>
+            <span>Liceo EPS</span>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -2697,6 +2839,13 @@ interface CompiledItem {
   year?: string;
   imageUrl?: string;
   isDummy?: boolean;
+  driveLink?: string;
+  link?: string;
+  attachmentUrl?: string;
+  attachmentType?: string;
+  attachmentName?: string;
+  authorName?: string;
+  createdAt?: any;
 }
 
 function ResumenPublicaciones({
@@ -2704,13 +2853,13 @@ function ResumenPublicaciones({
   visibleProjects,
   visibleMaterials,
   visibleActivities,
-  setActiveTab
+  onOpenDetail
 }: {
   visibleWorks: any[];
   visibleProjects: any[];
   visibleMaterials: any[];
   visibleActivities: any[];
-  setActiveTab: (tab: 'projects' | 'works' | 'materials' | 'activities' | 'about') => void;
+  onOpenDetail: (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => void;
 }) {
   // Combine all actual database approved items
   let items: CompiledItem[] = [
@@ -2721,7 +2870,13 @@ function ResumenPublicaciones({
       parentType: 'projects' as const, 
       categoryLabel: 'PROYECTOS',
       categoryValue: p.category,
-      imageUrl: p.imageUrl
+      imageUrl: p.imageUrl,
+      driveLink: p.driveLink,
+      attachmentUrl: p.attachmentUrl,
+      attachmentType: p.attachmentType,
+      attachmentName: p.attachmentName,
+      authorName: p.authorName,
+      createdAt: p.createdAt
     })),
     ...visibleWorks.map(w => ({ 
       id: w.id, 
@@ -2732,7 +2887,13 @@ function ResumenPublicaciones({
       categoryValue: w.workType,
       studentName: w.studentName,
       year: w.year,
-      imageUrl: w.imageUrl
+      imageUrl: w.imageUrl,
+      link: w.link,
+      driveLink: w.driveLink,
+      attachmentUrl: w.attachmentUrl,
+      attachmentType: w.attachmentType,
+      attachmentName: w.attachmentName,
+      createdAt: w.createdAt
     })),
     ...visibleMaterials.map(m => ({ 
       id: m.id, 
@@ -2741,7 +2902,12 @@ function ResumenPublicaciones({
       parentType: 'materials' as const, 
       categoryLabel: 'RECURSOS',
       categoryValue: m.subject,
-      teacherName: m.teacherName
+      teacherName: m.teacherName,
+      driveLink: m.driveLink,
+      attachmentUrl: m.attachmentUrl,
+      attachmentType: m.attachmentType,
+      attachmentName: m.attachmentName,
+      createdAt: m.createdAt
     })),
     ...visibleActivities.map(a => ({ 
       id: a.id, 
@@ -2750,7 +2916,12 @@ function ResumenPublicaciones({
       parentType: 'activities' as const, 
       categoryLabel: 'ACTIVIDADES',
       categoryValue: a.category,
-      imageUrl: a.imageUrl
+      imageUrl: a.imageUrl,
+      driveLink: a.driveLink,
+      attachmentUrl: a.attachmentUrl,
+      attachmentType: a.attachmentType,
+      attachmentName: a.attachmentName,
+      createdAt: a.createdAt
     }))
   ];
 
@@ -2801,13 +2972,7 @@ function ResumenPublicaciones({
   const activeItems = hasRealItems ? items : dummyItems;
 
   const handleCardClick = (item: CompiledItem) => {
-    setActiveTab(item.parentType);
-    setTimeout(() => {
-      const element = document.getElementById('content-form-section');
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 150);
+    onOpenDetail(item, item.parentType);
   };
 
   // Duplicate items for seamless continuous scrolling ticker effect
