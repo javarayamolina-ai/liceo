@@ -629,6 +629,7 @@ function CardMediaPreview({
   attachmentName?: string;
   imageUrl?: string;
 }) {
+  const [showDocPreview, setShowDocPreview] = useState(false);
   const url = attachmentUrl || imageUrl;
   if (!url) return null;
 
@@ -638,6 +639,9 @@ function CardMediaPreview({
                   
   const isVideo = (attachmentType && attachmentType.startsWith('video/')) || 
                   (url.match(/\.(mp4|webm|ogg|mov)/i));
+
+  const isPdf = (attachmentType && attachmentType === 'application/pdf') || 
+                (url.match(/\.pdf/i));
 
   if (isImage) {
     return (
@@ -664,14 +668,49 @@ function CardMediaPreview({
     );
   }
 
-  // If it's a document/PDF
+  // If it's a PDF or Office Document
+  const docViewerUrl = isPdf 
+    ? url 
+    : `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+
   return (
-    <div className="w-full p-4 border-b-4 border-brand-black bg-brand-bg flex items-center gap-3 mb-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-      <FileIcon className="w-8 h-8 text-brand-red shrink-0" />
-      <div className="flex-grow min-w-0">
-        <p className="text-[11px] font-black uppercase truncate text-brand-black">{attachmentName || "Documento Adjunto"}</p>
-        <span className="text-[8px] font-mono uppercase text-gray-400">Ver o Descargar Archivo</span>
+    <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white">
+      <div className="w-full p-4 bg-brand-bg flex items-center justify-between gap-3 border-b-2 border-brand-black">
+        <div className="flex items-center gap-3 min-w-0">
+          <FileIcon className="w-8 h-8 text-brand-red shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase truncate text-brand-black">{attachmentName || "Documento Adjunto"}</p>
+            <span className="text-[8px] font-mono uppercase text-gray-400">Documento de Lectura</span>
+          </div>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowDocPreview(!showDocPreview)}
+            className="px-2 py-1 bg-brand-black text-white hover:bg-brand-red text-[9px] font-mono uppercase font-bold transition-all shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] cursor-pointer"
+          >
+            {showDocPreview ? 'Ocultar' : 'Previsualizar'}
+          </button>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 bg-white text-brand-black border border-brand-border hover:border-brand-red text-[9px] font-mono uppercase font-bold transition-all cursor-pointer"
+          >
+            Descargar
+          </a>
+        </div>
       </div>
+      {showDocPreview && (
+        <div className="w-full h-80 bg-neutral-100 relative">
+          <iframe 
+            src={docViewerUrl} 
+            className="w-full h-full border-none" 
+            title="Vista previa del documento"
+            sandbox="allow-same-origin allow-scripts allow-popups"
+          />
+        </div>
+      )}
     </div>
   );
 }
