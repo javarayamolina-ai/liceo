@@ -102,10 +102,15 @@ export default function App() {
 
   const handleToggleLike = async (collectionPath: string, id: string, currentLikes = 0) => {
     const isLiked = likedItems.includes(id);
-    const updatedLikes = isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
-    const newLikedItems = isLiked 
-      ? likedItems.filter(item => item !== id) 
-      : [...likedItems, id];
+    
+    // If the device has already liked this post, prevent duplicate voting
+    if (isLiked) {
+      showToast("Ya has reaccionado a esta publicación.");
+      return;
+    }
+    
+    const updatedLikes = currentLikes + 1;
+    const newLikedItems = [...likedItems, id];
     
     setLikedItems(newLikedItems);
     localStorage.setItem('liked_items', JSON.stringify(newLikedItems));
@@ -115,6 +120,7 @@ export default function App() {
     
     try {
       await FirestoreService.update(targetCollection, id, { likes: updatedLikes });
+      showToast("¡Gracias por tu reacción!");
     } catch (error) {
       console.error("Error updating likes:", error);
       // Revert state
