@@ -221,7 +221,7 @@ export default function App() {
             </div>
           </div>
 
-          <nav className="hidden xl:flex items-center border-2 border-brand-black bg-white overflow-hidden divide-x-2 divide-brand-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mr-4">
+          <nav className="hidden xl:flex shrink-0 items-center border-2 border-brand-black bg-white overflow-hidden divide-x-2 divide-brand-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mr-4">
             <NavButton active={activeTab === 'about'} onClick={() => handleTabChange('about')}>Inicio</NavButton>
             <NavButton active={activeTab === 'works'} onClick={() => handleTabChange('works')}>Creaciones estudiantiles</NavButton>
             <NavButton active={activeTab === 'projects'} onClick={() => handleTabChange('projects')}>Proyectos</NavButton>
@@ -2255,18 +2255,33 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
     const storageRef = ref(storage, safeName);
     const task = uploadBytesResumable(storageRef, file);
 
+    // Timeout de 6 segundos en caso de que se quede pegado en 0% (común si Firebase Storage no está activado o bloqueado)
+    const timeoutId = setTimeout(() => {
+      task.cancel();
+      setUploadProgress(null);
+      setUploadedFile(null);
+      alert('El servidor de almacenamiento no responde (Firebase Storage no activado o sin permisos de escritura en este proyecto sandbox).\n\nPor favor, sube tu archivo a Google Drive o Dropbox y usa la casilla de "Enlace de Drive" en el formulario para compartirlo con la comunidad.');
+    }, 6000);
+
     task.on('state_changed',
       (snap) => {
         const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
         setUploadProgress(pct);
+        if (pct > 0) {
+          clearTimeout(timeoutId);
+        }
       },
       (err) => {
-        console.error('Upload error', err);
-        alert('Error al subir el archivo. Intenta de nuevo.');
+        clearTimeout(timeoutId);
+        if (err.code !== 'storage/canceled') {
+          console.error('Upload error', err);
+          alert('Error al subir el archivo: ' + err.message + '\n\nTe recomendamos subir el archivo a Google Drive y usar la casilla "Enlace de Drive" en el formulario.');
+        }
         setUploadProgress(null);
         setUploadedFile(null);
       },
       async () => {
+        clearTimeout(timeoutId);
         const url = await getDownloadURL(task.snapshot.ref);
         setUploadedUrl(url);
         setUploadProgress(100);
