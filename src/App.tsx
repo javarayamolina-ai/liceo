@@ -177,7 +177,15 @@ export default function App() {
     [...arr].sort((a, b) => {
       if (a.pinned && !b.pinned) return -1;
       if (!a.pinned && b.pinned) return 1;
-      return 0;
+      const getMs = (dateObj: any) => {
+        if (!dateObj) return 0;
+        if (typeof dateObj.toMillis === 'function') return dateObj.toMillis();
+        if (typeof dateObj.seconds === 'number') return dateObj.seconds * 1000;
+        if (dateObj instanceof Date) return dateObj.getTime();
+        if (typeof dateObj === 'string') return new Date(dateObj).getTime();
+        return 0;
+      };
+      return getMs(b.createdAt) - getMs(a.createdAt);
     });
 
   // Content filters: Non-admins see approved content + their own pending posts. Rejected content is hidden from main view.
@@ -185,7 +193,7 @@ export default function App() {
   const visibleWorks = sortPinnedFirst(works.filter(w => (w.approved && !w.rejected) || (isAdmin && !w.rejected) || (user && w.authorId === user.uid && !w.rejected)));
   const visibleMaterials = sortPinnedFirst(materials.filter(m => (m.approved && !m.rejected) || (isAdmin && !m.rejected) || (user && m.authorId === user.uid && !m.rejected)));
   const visibleActivities = sortPinnedFirst(activities.filter(a => (a.approved && !a.rejected) || (isAdmin && !a.rejected) || (user && a.authorId === user.uid && !a.rejected)));
-  const visibleTestimonials = testimonials.filter(t => t.approved && !t.rejected);
+  const visibleTestimonials = sortPinnedFirst(testimonials.filter(t => t.approved && !t.rejected));
 
   const unapprovedCount = [
     ...projects.filter(p => !p.approved && !p.rejected),
@@ -769,7 +777,7 @@ function ProjectCard({ project, user, accent = false, isSelected, onSelect }: Pr
         </h4>
         <CardMediaPreview attachmentUrl={project.attachmentUrl} attachmentType={project.attachmentType} attachmentName={project.attachmentName} imageUrl={project.imageUrl} />
         <div className={cn("p-4 border-l-4 border-brand-red mb-6", accent ? "bg-white/5" : "bg-brand-bg")}>
-          <p className={cn("text-xs md:text-sm leading-relaxed line-clamp-5 font-medium", accent ? "text-gray-300" : "text-gray-700")}>
+          <p className={cn("text-xs md:text-sm leading-relaxed line-clamp-5 font-medium not-italic font-sans", accent ? "text-white" : "text-gray-900")}>
             {project.description}
           </p>
         </div>
@@ -956,7 +964,7 @@ function WorkCard({ work, user, dark = false, isSelected, onSelect }: WorkCardPr
         
         <div className={cn("relative p-6 mb-6 border-l-4 border-brand-red", dark ? "bg-white/5" : "bg-brand-bg")}>
           <span className="text-5xl font-serif text-brand-red leading-none absolute top-1 left-2 select-none opacity-30">“</span>
-          <p className={cn("text-sm md:text-base leading-relaxed font-serif line-clamp-8 pt-4", dark ? "text-white" : "text-gray-950 font-medium")}>
+          <p className={cn("text-sm md:text-base leading-relaxed font-sans not-italic line-clamp-8 pt-4", dark ? "text-white" : "text-brand-black font-semibold")}>
             {work.content}
           </p>
           <div className={cn("absolute bottom-2 right-2 opacity-10", dark ? "text-white" : "text-brand-red")}>
@@ -1141,7 +1149,7 @@ function MaterialCard({ material, user, isSelected, onSelect }: MaterialCardProp
       <div className="flex-grow flex flex-col justify-between">
         <div>
           {material.description ? (
-            <div className="p-4 bg-brand-bg border-l-4 border-brand-red mb-6 text-xs md:text-sm text-gray-700 font-medium">
+            <div className="p-4 bg-brand-bg border-l-4 border-brand-red mb-6 text-xs md:text-sm text-gray-900 font-semibold not-italic font-sans">
               {material.description}
             </div>
           ) : (
@@ -1350,7 +1358,7 @@ function ActivityCard({ activity, user, isSelected, onSelect }: ActivityCardProp
             <h4 className="text-2xl lg:text-3xl font-extrabold uppercase tracking-tighter leading-none">{activity.title}</h4>
           </div>
 
-          <div className="p-4 bg-brand-bg border-l-4 border-brand-red text-xs md:text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-line">
+          <div className="p-4 bg-brand-bg border-l-4 border-brand-red text-xs md:text-sm text-gray-900 font-semibold not-italic font-sans leading-relaxed whitespace-pre-line">
             {activity.description}
           </div>
 
@@ -1777,6 +1785,12 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                       Restaurar
                     </button>
                   )}
+                  <button 
+                    onClick={() => FirestoreService.update('testimonials', item.id, { pinned: !item.pinned })}
+                    className={cn("px-3 py-2 text-[9px] font-bold uppercase border transition-all flex items-center gap-1", item.pinned ? "border-brand-red bg-brand-red text-white hover:bg-brand-black hover:border-brand-black" : "border-gray-200 text-gray-400 hover:text-brand-red hover:border-brand-red")}
+                  >
+                    📌 {item.pinned ? 'Desfijar' : 'Fijar'}
+                  </button>
                   <button onClick={() => FirestoreService.remove('testimonials', item.id)} className="px-3 py-2 text-gray-400 hover:text-brand-red border border-gray-200 hover:border-brand-red transition-all">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -1848,7 +1862,7 @@ function TestimonialsView({ testimonials, user }: { testimonials: Testimonial[];
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const ROLES = ['Estudiante', 'Apoderado/a', 'Egresado/a', 'Vecino/a', 'Docente', 'Otro'];
+  const ROLES = ['Estudiante', 'Apoderado/a', 'Egresado/a', 'Vecino/a', 'Profesor/a', 'Otro'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1882,7 +1896,7 @@ function TestimonialsView({ testimonials, user }: { testimonials: Testimonial[];
           Testimonios
         </h3>
         <p className="text-sm text-gray-600 font-medium max-w-xl leading-relaxed">
-          Palabras de quienes forman parte de esta comunidad educativa. Estudiantes, apoderados/as, egresados/as y vecinos/as comparten sus experiencias.
+          Palabras de quienes forman parte de esta comunidad educativa. El estudiantado, apoderados/as, egresados/as y la comunidad vecinal comparten sus experiencias.
         </p>
       </div>
 
@@ -2007,14 +2021,14 @@ function AboutSection() {
     {
       title: "Democratización",
       text: "Todo el material es de libre acceso y descarga.",
-      fullText: "Creemos firmemente que la educación y el conocimiento pedagógico deben ser un bien común y universal. El acceso a las creaciones, investigaciones, planificaciones y materiales de este portal no requiere de barreras económicas ni de suscripciones. Facilitamos la descarga libre de recursos de calidad para que docentes, estudiantes y comunidades organizadas puedan reutilizarlos y adaptarlos a sus propios contextos territoriales.",
+      fullText: "Creemos firmemente que la educación y el conocimiento pedagógico deben ser un bien común y universal. El acceso a las creaciones, investigaciones, planificaciones y materiales de este portal no requiere de barreras económicas ni de suscripciones. Facilitamos la descarga libre de recursos de calidad para que el profesorado, el estudiantado y comunidades organizadas puedan reutilizarlos y adaptarlos a sus propios contextos territoriales.",
       icon: <Globe className="w-8 h-8 text-brand-red shrink-0" />,
       badge: "Acceso Común"
     },
     {
       title: "Pertinencia",
       text: "Contenidos que responden a la realidad de la clase trabajadora.",
-      fullText: "La educación cobra sentido cuando se sitúa en la historia y experiencia de vida de sus estudiantes. Desarrollamos reflexiones pedagógicas y proyectos de investigación que conectan directamente con problemáticas laborales, habitacionales, de género, socioambientales e históricas del territorio de la clase trabajadora. Esto transforma las aulas en espacios de producción intelectual viva y colectiva, distanciándose del currículum nacional estandarizado y descontextualizado.",
+      fullText: "La educación cobra sentido cuando se sitúa en la historia y experiencia de vida de la comunidad estudiantil. Desarrollamos reflexiones pedagógicas y proyectos de investigación que conectan directamente con problemáticas laborales, habitacionales, de género, socioambientales e históricas del territorio de la clase trabajadora. Esto transforma las aulas en espacios de producción intelectual viva y colectiva, distanciándose del currículum nacional estandarizado y descontextualizado.",
       icon: <Compass className="w-8 h-8 text-brand-red shrink-0" />,
       badge: "Pedagogía de Contexto Territorial"
     },
@@ -2053,9 +2067,9 @@ function AboutSection() {
       </section>
 
       <section className="grid lg:grid-cols-3 gap-1 px-1 bg-brand-border">
-        <AboutStat label="Justicia" value="Equidad" desc="Acceso radical al conocimiento pedagógico." />
+        <AboutStat label="Justicia" value="Equidad" desc="Acceso al conocimiento pedagógico." />
         <AboutStat label="Voz" value="Identidad" desc="El estudiantado como autor de su historia." />
-        <AboutStat label="Red" value="Comunidad" desc="Docentes compartiendo para transformar." />
+        <AboutStat label="Red" value="Comunidad" desc="El profesorado compartiendo para transformar." />
       </section>
 
       <section className="bg-brand-red text-white p-16 md:p-24 rotate-1">
@@ -2336,7 +2350,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
           {contentType === 'works' && (
             <div className="space-y-4">
               <FormInput name="title" label="Título del Trabajo" required />
-              <FormInput name="studentName" label="Nombre del Estudiante" required />
+              <FormInput name="studentName" label="Nombre del o de la Estudiante" required />
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-bold uppercase text-gray-400">Asignatura</label>
@@ -2400,7 +2414,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.webp,.svg"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.webp,.svg,.mp4,.mov,.webm,.ogg"
               className="hidden"
               onChange={handleFileSelect}
             />
@@ -2715,13 +2729,13 @@ function ResumenPublicaciones({
       parentType: 'materials',
       categoryLabel: 'RECURSOS',
       categoryValue: 'Estudios Sociales',
-      teacherName: 'Profa. Javiera Araya',
+      teacherName: 'Prof. Javiera Araya',
       isDummy: true
     },
     {
       id: 'dummy4',
       title: 'Corrida Escolar EPJA por la Salud e Integridad Comunitaria',
-      description: 'Registro histórico fotográfico de la jornada participativa de acondicionamiento físico y recreación colectiva organizada por estudiantes vespertinos.',
+      description: 'Registro histórico fotográfico de la jornada participativa de acondicionamiento físico y recreación colectiva organizada por la comunidad estudiantil vespertina.',
       parentType: 'activities',
       categoryLabel: 'ACTIVIDADES',
       categoryValue: 'Educación Física',
@@ -2779,13 +2793,13 @@ function ResumenPublicaciones({
         </div>
       </div>
 
-      {/* 3. Horizontal Grid Showcase Carousel (Trabajos del alumno) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* 3. Horizontal Showcase Carousel (Autoplay) */}
+      <RetroCarousel itemCount={activeItems.length} autoplay={true} autoplayInterval={4000}>
         {activeItems.map((item, index) => (
           <div
             key={item.id}
             onClick={() => handleCardClick(item)}
-            className="flex flex-col justify-between p-6 border-4 border-brand-black bg-white hover:border-brand-red cursor-pointer transition-all duration-300 hover:translate-y-[-6px] hover:translate-x-[-2px] relative group shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_rgba(188,33,34,1)] min-h-[340px]"
+            className="flex-shrink-0 w-[280px] sm:w-[320px] flex flex-col justify-between p-6 border-4 border-brand-black bg-white hover:border-brand-red cursor-pointer transition-all duration-300 hover:translate-y-[-6px] hover:translate-x-[-2px] relative group shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[10px_10px_0px_0px_rgba(188,33,34,1)] min-h-[340px] snap-start"
           >
             {item.isDummy && (
               <span className="absolute top-2 right-2 bg-yellow-100 border border-yellow-400 text-yellow-800 text-[8px] font-bold px-1 py-0.5 rounded">
@@ -2811,7 +2825,7 @@ function ResumenPublicaciones({
                 {item.title}
               </h4>
               
-              <p className="text-xs text-gray-900 font-serif line-clamp-4 leading-relaxed">
+              <p className="text-xs text-brand-black font-sans not-italic font-semibold line-clamp-4 leading-relaxed">
                 {item.description}
               </p>
             </div>
@@ -2836,7 +2850,7 @@ function ResumenPublicaciones({
             </div>
           </div>
         ))}
-      </div>
+      </RetroCarousel>
     </div>
   );
 }
