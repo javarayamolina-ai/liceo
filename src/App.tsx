@@ -23,7 +23,8 @@ import {
   Link2,
   Paperclip,
   UploadCloud,
-  File as FileIcon
+  File as FileIcon,
+  Search
 } from 'lucide-react';
 import { auth, storage } from './lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -67,6 +68,7 @@ export default function App() {
   const [selectedAsignatura, setSelectedAsignatura] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [selectedDetailItem, setSelectedDetailItem] = useState<any | null>(null);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
 
   const handleOpenDetail = (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => {
     const categoryLabel = type === 'projects' ? 'PROYECTOS' : type === 'works' ? 'CREACIONES ESTUDIANTILES' : type === 'materials' ? 'RECURSOS' : 'ACTIVIDADES';
@@ -85,6 +87,7 @@ export default function App() {
   useEffect(() => {
     setSelectedAsignatura(null);
     setSelectedCourse(null);
+    setClientSearchTerm('');
   }, [activeTab]);
 
   useEffect(() => {
@@ -204,11 +207,29 @@ export default function App() {
     });
 
   // Content filters: Non-admins see approved content + their own pending posts. Rejected content is hidden from main view.
-  const visibleProjects = sortPinnedFirst(projects.filter(p => (p.approved && !p.rejected) || (isAdmin && !p.rejected) || (user && p.authorId === user.uid && !p.rejected)));
-  const visibleWorks = sortPinnedFirst(works.filter(w => (w.approved && !w.rejected) || (isAdmin && !w.rejected) || (user && w.authorId === user.uid && !w.rejected)));
-  const visibleMaterials = sortPinnedFirst(materials.filter(m => (m.approved && !m.rejected) || (isAdmin && !m.rejected) || (user && m.authorId === user.uid && !m.rejected)));
-  const visibleActivities = sortPinnedFirst(activities.filter(a => (a.approved && !a.rejected) || (isAdmin && !a.rejected) || (user && a.authorId === user.uid && !a.rejected)));
-  const visibleTestimonials = sortPinnedFirst(testimonials.filter(t => t.approved && !t.rejected));
+  const rawProjects = sortPinnedFirst(projects.filter(p => (p.approved && !p.rejected) || (user && p.authorId === user.uid && !p.rejected)));
+  const rawWorks = sortPinnedFirst(works.filter(w => (w.approved && !w.rejected) || (user && w.authorId === user.uid && !w.rejected)));
+  const rawMaterials = sortPinnedFirst(materials.filter(m => (m.approved && !m.rejected) || (user && m.authorId === user.uid && !m.rejected)));
+  const rawActivities = sortPinnedFirst(activities.filter(a => (a.approved && !a.rejected) || (user && a.authorId === user.uid && !a.rejected)));
+  const rawTestimonials = sortPinnedFirst(testimonials.filter(t => (t.approved && !t.rejected) || (user && t.authorId === user.uid && !t.rejected)));
+
+  const filterBySearch = (list: any[]) => {
+    if (!clientSearchTerm.trim()) return list;
+    const term = clientSearchTerm.toLowerCase().trim();
+    return list.filter(item => {
+      const title = (item.title || item.name || '').toLowerCase();
+      const description = (item.description || item.content || '').toLowerCase();
+      const author = (item.authorName || item.studentName || item.teacherName || item.name || '').toLowerCase();
+      const extra = (item.category || item.workType || item.subject || item.role || '').toLowerCase();
+      return title.includes(term) || description.includes(term) || author.includes(term) || extra.includes(term);
+    });
+  };
+
+  const visibleProjects = filterBySearch(rawProjects);
+  const visibleWorks = filterBySearch(rawWorks);
+  const visibleMaterials = filterBySearch(rawMaterials);
+  const visibleActivities = filterBySearch(rawActivities);
+  const visibleTestimonials = filterBySearch(rawTestimonials);
 
   const unapprovedCount = [
     ...projects.filter(p => !p.approved && !p.rejected),
@@ -337,10 +358,36 @@ export default function App() {
         </div>
 
         <section id="content-form-section" className="max-w-7xl mx-auto w-full px-6 md:px-12 py-16 scroll-mt-[75px] md:scroll-mt-[90px]">
-          {showAdminDashboard && (
+          {showAdminDashboard ? (
             <div className="mb-12">
               <span className="text-[10px] font-bold text-brand-red uppercase tracking-[0.2em] block mb-2">Administración</span>
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">Panel de Control</h2>
+            </div>
+          ) : (
+            <div className="mb-12 max-w-xl animate-fade-in">
+              <div className="relative border-4 border-brand-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus-within:shadow-[6px_6px_0px_0px_rgba(191,49,49,1)] transition-all">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-black pointer-events-none">
+                  <Search className="w-5 h-5 shrink-0" />
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Buscar creaciones, profesores, proyectos o palabras clave..."
+                  value={clientSearchTerm}
+                  onChange={(e) => setClientSearchTerm(e.target.value)}
+                  className="w-full bg-transparent border-none pl-12 pr-12 py-3.5 text-sm font-bold uppercase tracking-wide placeholder-gray-400 outline-none text-brand-black"
+                />
+                {clientSearchTerm && (
+                  <button 
+                    onClick={() => setClientSearchTerm('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-red cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[9px] font-mono text-gray-400 uppercase tracking-widest mt-2 ml-1">
+                Buscador interactivo · Escribe cualquier palabra clave o nombre para filtrar en tiempo real
+              </p>
             </div>
           )}
 
@@ -903,7 +950,7 @@ function DetailModal({
             )}
             {item.teacherName && (
               <div className="flex justify-between items-center text-[10px] sm:text-xs">
-                <span className="text-gray-400 uppercase font-mono">Profesor/a cargo:</span>
+                <span className="text-gray-400 uppercase font-mono">Profesor/a:</span>
                 <span className="font-bold text-brand-black">{item.teacherName}</span>
               </div>
             )}
@@ -1934,34 +1981,31 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                 onClick={() => setAdminTab('works')}
                 className={cn("whitespace-nowrap text-xs font-bold uppercase tracking-widest px-4 py-2 border-b-2", adminTab === 'works' ? "border-brand-red text-brand-red" : "border-transparent opacity-40")}
               >
-                Creaciones ({works.length})
+                Creaciones {pendingWorks.length > 0 ? `(${pendingWorks.length})` : ''}
               </button>
               <button 
                 onClick={() => setAdminTab('projects')}
                 className={cn("whitespace-nowrap text-xs font-bold uppercase tracking-widest px-4 py-2 border-b-2", adminTab === 'projects' ? "border-brand-red text-brand-red" : "border-transparent opacity-40")}
               >
-                Proyectos ({projects.length})
+                Proyectos {pendingProjects.length > 0 ? `(${pendingProjects.length})` : ''}
               </button>
               <button 
                 onClick={() => setAdminTab('materials')}
                 className={cn("whitespace-nowrap text-xs font-bold uppercase tracking-widest px-4 py-2 border-b-2", adminTab === 'materials' ? "border-brand-red text-brand-red" : "border-transparent opacity-40")}
               >
-                Recursos ({materials.length})
+                Recursos {pendingMaterials.length > 0 ? `(${pendingMaterials.length})` : ''}
               </button>
               <button 
                 onClick={() => setAdminTab('activities')}
                 className={cn("whitespace-nowrap text-xs font-bold uppercase tracking-widest px-4 py-2 border-b-2", adminTab === 'activities' ? "border-brand-red text-brand-red" : "border-transparent opacity-40")}
               >
-                Actividades ({activities.length})
+                Actividades {pendingActivities.length > 0 ? `(${pendingActivities.length})` : ''}
               </button>
               <button 
                 onClick={() => setAdminTab('testimonials')}
                 className={cn("whitespace-nowrap text-xs font-bold uppercase tracking-widest px-4 py-2 border-b-2 relative", adminTab === 'testimonials' ? "border-brand-red text-brand-red" : "border-transparent opacity-40")}
               >
-                Testimonios ({testimonials.length})
-                {pendingTestimonials.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-brand-red text-white text-[8px] font-bold flex items-center justify-center rounded-full">{pendingTestimonials.length}</span>
-                )}
+                Testimonios {pendingTestimonials.length > 0 ? `(${pendingTestimonials.length})` : ''}
               </button>
             </div>
 
