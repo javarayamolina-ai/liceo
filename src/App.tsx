@@ -110,8 +110,11 @@ export default function App() {
     setLikedItems(newLikedItems);
     localStorage.setItem('liked_items', JSON.stringify(newLikedItems));
     
+    // Map collection name 'works' to the actual database collection path 'studentWorks'
+    const targetCollection = collectionPath === 'works' ? 'studentWorks' : collectionPath;
+    
     try {
-      await FirestoreService.update(collectionPath, id, { likes: updatedLikes });
+      await FirestoreService.update(targetCollection, id, { likes: updatedLikes });
     } catch (error) {
       console.error("Error updating likes:", error);
       // Revert state
