@@ -2588,7 +2588,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
         newDoc = await FirestoreService.create('materials', {
           ...data,
           ...common,
-          teacherName: user?.displayName || 'Prof.'
+          teacherName: (data.teacherName as string)?.trim() || user?.displayName || 'Prof.'
         });
       } else if (contentType === 'activities') {
         newDoc = await FirestoreService.create('activities', {
@@ -2705,6 +2705,7 @@ function ContentForm({ onSuccess, onCancel, user, isAdmin = false, forcedType }:
           {contentType === 'materials' && (
             <div className="space-y-4">
               <FormInput name="title" label="Título del Recurso" required />
+              <FormInput name="teacherName" label="Profesor/a (Opcional)" placeholder="Ej: Prof. María López" />
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-bold uppercase text-gray-400">Asignatura</label>
                 <select name="subject" required className="bg-white border border-brand-border px-3 py-2 text-sm outline-none focus:border-brand-red">
