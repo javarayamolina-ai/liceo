@@ -246,10 +246,13 @@ export default function App() {
           <div className="flex items-center gap-4 md:gap-6 shrink-0">
             <PolishedButton 
               onClick={handleOpenForm}
-              className="hidden md:flex bg-brand-red text-white border-none text-[10px] py-2.5 px-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
+              className="hidden md:flex flex-col items-center bg-brand-red text-white border-none text-[8.5px] py-1.5 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all shrink-0 leading-none gap-0.5 cursor-pointer"
             >
-              <Plus className="w-4 h-4 mr-1.5" />
-              Sube tu Contenido
+              <div className="flex items-center gap-1 font-black">
+                <Plus className="w-3 h-3 shrink-0" />
+                <span>SUBE TU</span>
+              </div>
+              <span className="font-mono text-[8px] tracking-wider opacity-90">CONTENIDO</span>
             </PolishedButton>
 
             <button className="xl:hidden cursor-pointer p-1" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -342,7 +345,7 @@ export default function App() {
           {/* List of items depending on tab */}
           <AnimatePresence mode="wait">
             {showAdminDashboard ? (
-              <AdminDashboard key="admin" user={user} projects={projects} works={works} materials={materials} activities={activities} testimonials={testimonials} />
+              <AdminDashboard key="admin" user={user} projects={projects} works={works} materials={materials} activities={activities} testimonials={testimonials} onOpenDetail={handleOpenDetail} />
             ) : (
               <motion.div
                 key={activeTab}
@@ -363,7 +366,7 @@ export default function App() {
                           .filter(p => !selectedAsignatura || p.category === selectedAsignatura)
                           .map((project, i) => (
                             <div key={project.id} className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start">
-                              <ProjectCard project={project} user={user} accent={i % 3 === 0} />
+                              <ProjectCard project={project} user={user} onOpenDetail={handleOpenDetail} accent={i % 3 === 0} />
                             </div>
                           ))
                         }
@@ -383,7 +386,7 @@ export default function App() {
                           .filter(w => !selectedCourse || w.year === selectedCourse)
                           .map((work, i) => (
                             <div key={work.id} className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start">
-                              <WorkCard work={work} user={user} dark={false} />
+                              <WorkCard work={work} user={user} onOpenDetail={handleOpenDetail} dark={false} />
                             </div>
                           ))
                         }
@@ -403,7 +406,7 @@ export default function App() {
                           .filter(m => !selectedAsignatura || m.subject === selectedAsignatura)
                           .map(material => (
                             <div key={material.id} className="w-[75vw] sm:w-[280px] md:w-[300px] lg:w-[320px] shrink-0 snap-start">
-                              <MaterialCard material={material} user={user} />
+                              <MaterialCard material={material} user={user} onOpenDetail={handleOpenDetail} />
                             </div>
                           ))
                         }
@@ -423,7 +426,7 @@ export default function App() {
                           .filter(a => !selectedAsignatura || a.category === selectedAsignatura || (selectedAsignatura === 'Otros' && !a.category))
                           .map(activity => (
                             <div key={activity.id} className="w-[85vw] sm:w-[360px] md:w-[380px] lg:w-[400px] shrink-0 snap-start">
-                              <ActivityCard activity={activity} user={user} />
+                              <ActivityCard activity={activity} user={user} onOpenDetail={handleOpenDetail} />
                             </div>
                           ))
                         }
@@ -643,93 +646,168 @@ function CardMediaPreview({
   attachmentUrl,
   attachmentType,
   attachmentName,
-  imageUrl
+  imageUrl,
+  driveLink
 }: {
   attachmentUrl?: string;
   attachmentType?: string;
   attachmentName?: string;
   imageUrl?: string;
+  driveLink?: string;
 }) {
   const [showDocPreview, setShowDocPreview] = useState(false);
+  const [showDrivePreview, setShowDrivePreview] = useState(false);
   const url = attachmentUrl || imageUrl;
-  if (!url) return null;
+  
+  // Convert Drive Link to preview format
+  function getGoogleDriveEmbedUrl(linkUrl: string) {
+    if (!linkUrl) return '';
+    try {
+      if (linkUrl.includes('drive.google.com') || linkUrl.includes('docs.google.com')) {
+        let embedUrl = linkUrl;
+        if (embedUrl.includes('/d/')) {
+          const parts = embedUrl.split('/d/');
+          if (parts[1]) {
+            const idPart = parts[1].split('/')[0].split('?')[0].split('#')[0];
+            if (embedUrl.includes('/document/d/')) {
+              return `https://docs.google.com/document/d/${idPart}/preview`;
+            }
+            if (embedUrl.includes('/presentation/d/')) {
+              return `https://docs.google.com/presentation/d/${idPart}/preview`;
+            }
+            if (embedUrl.includes('/spreadsheets/d/')) {
+              return `https://docs.google.com/spreadsheets/d/${idPart}/preview`;
+            }
+            return `https://drive.google.com/file/d/${idPart}/preview`;
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return '';
+  }
+
+  const driveEmbedUrl = driveLink ? getGoogleDriveEmbedUrl(driveLink) : '';
+
+  if (!url && !driveEmbedUrl) return null;
 
   const isImage = (attachmentType && attachmentType.startsWith('image/')) || 
-                  (url.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)) ||
+                  (url && url.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)) ||
                   imageUrl;
                   
   const isVideo = (attachmentType && attachmentType.startsWith('video/')) || 
-                  (url.match(/\.(mp4|webm|ogg|mov)/i));
+                  (url && url.match(/\.(mp4|webm|ogg|mov)/i));
 
   const isPdf = (attachmentType && attachmentType === 'application/pdf') || 
-                (url.match(/\.pdf/i));
-
-  if (isImage) {
-    return (
-      <div className="w-full aspect-video md:aspect-[4/3] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
-        <img 
-          src={url} 
-          alt={attachmentName || "Publicación"} 
-          className="object-cover w-full h-full filter hover:filter-none transition-all duration-500 hover:scale-105"
-          referrerPolicy="no-referrer"
-        />
-      </div>
-    );
-  }
-
-  if (isVideo) {
-    return (
-      <div className="w-full aspect-video md:aspect-[4/3] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
-        <video 
-          src={url} 
-          controls 
-          className="w-full h-full object-cover"
-        />
-      </div>
-    );
-  }
-
-  // If it's a PDF or Office Document
-  const docViewerUrl = isPdf 
-    ? url 
-    : `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+                (url && url.match(/\.pdf/i));
 
   return (
-    <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white">
-      <div className="w-full p-4 bg-brand-bg flex items-center justify-between gap-3 border-b-2 border-brand-black">
-        <div className="flex items-center gap-3 min-w-0">
-          <FileIcon className="w-8 h-8 text-brand-red shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase truncate text-brand-black">{attachmentName || "Documento Adjunto"}</p>
-            <span className="text-[8px] font-mono uppercase text-gray-400">Documento de Lectura</span>
-          </div>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowDocPreview(!showDocPreview)}
-            className="px-2 py-1 bg-brand-black text-white hover:bg-brand-red text-[9px] font-mono uppercase font-bold transition-all shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] cursor-pointer"
-          >
-            {showDocPreview ? 'Ocultar' : 'Previsualizar'}
-          </button>
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-2 py-1 bg-white text-brand-black border border-brand-border hover:border-brand-red text-[9px] font-mono uppercase font-bold transition-all cursor-pointer"
-          >
-            Descargar
-          </a>
-        </div>
-      </div>
-      {showDocPreview && (
-        <div className="w-full h-80 bg-neutral-100 relative">
-          <iframe 
-            src={docViewerUrl} 
-            className="w-full h-full border-none" 
-            title="Vista previa del documento"
-            sandbox="allow-same-origin allow-scripts allow-popups"
+    <div className="w-full space-y-4">
+      {/* Main Image */}
+      {url && isImage && (
+        <div className="w-full aspect-video md:aspect-[4/3] overflow-hidden bg-brand-bg border-b-4 border-brand-black relative mb-4">
+          <img 
+            src={url} 
+            alt={attachmentName || "Publicación"} 
+            className="object-cover w-full h-full filter hover:filter-none transition-all duration-500 hover:scale-105"
+            referrerPolicy="no-referrer"
           />
+        </div>
+      )}
+
+      {/* Main Video */}
+      {url && isVideo && (
+        <div className="w-full aspect-video md:aspect-[4/3] overflow-hidden bg-brand-black border-b-4 border-brand-black relative mb-4 flex items-center justify-center animate-fade-in">
+          <video 
+            src={url} 
+            controls 
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+
+      {/* Main PDF/Office Doc Attachment */}
+      {url && !isImage && !isVideo && (
+        <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <div className="w-full p-4 bg-brand-bg flex items-center justify-between gap-3 border-b-2 border-brand-black">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileIcon className="w-8 h-8 text-brand-red shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase truncate text-brand-black">{attachmentName || "Documento Adjunto"}</p>
+                <span className="text-[8px] font-mono uppercase text-gray-400">Documento de Lectura</span>
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowDocPreview(!showDocPreview)}
+                className="px-2 py-1 bg-brand-black text-white hover:bg-brand-red text-[9px] font-mono uppercase font-bold transition-all shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] cursor-pointer"
+              >
+                {showDocPreview ? 'Ocultar' : 'Previsualizar'}
+              </button>
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1 bg-white text-brand-black border border-brand-border hover:border-brand-red text-[9px] font-mono uppercase font-bold transition-all cursor-pointer"
+              >
+                Descargar
+              </a>
+            </div>
+          </div>
+          {showDocPreview && (
+            <div className="w-full h-80 bg-neutral-100 relative">
+              <iframe 
+                src={isPdf ? url : `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`} 
+                className="w-full h-full border-none" 
+                title="Vista previa del documento"
+                sandbox="allow-same-origin allow-scripts allow-popups"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Google Drive Link Preview */}
+      {driveEmbedUrl && (
+        <div className="w-full mb-4 flex flex-col border-2 border-brand-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <div className="w-full p-4 bg-brand-bg flex items-center justify-between gap-3 border-b-2 border-brand-black">
+            <div className="flex items-center gap-3 min-w-0">
+              <Globe className="w-8 h-8 text-blue-600 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase truncate text-brand-black">Documento Google Drive</p>
+                <span className="text-[8px] font-mono uppercase text-gray-400">Enlace Externo Vinculado</span>
+              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowDrivePreview(!showDrivePreview)}
+                className="px-2 py-1 bg-brand-black text-white hover:bg-brand-red text-[9px] font-mono uppercase font-bold transition-all shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] cursor-pointer"
+              >
+                {showDrivePreview ? 'Ocultar' : 'Previsualizar'}
+              </button>
+              <a
+                href={driveLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-2 py-1 bg-white text-brand-black border border-brand-border hover:border-brand-red text-[9px] font-mono uppercase font-bold transition-all cursor-pointer"
+              >
+                Abrir Link
+              </a>
+            </div>
+          </div>
+          {showDrivePreview && (
+            <div className="w-full h-96 bg-neutral-100 relative">
+              <iframe 
+                src={driveEmbedUrl} 
+                className="w-full h-full border-none" 
+                title="Vista previa del documento de Google Drive"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -785,6 +863,7 @@ function DetailModal({
             attachmentType={item.attachmentType} 
             attachmentName={item.attachmentName}
             imageUrl={item.imageUrl}
+            driveLink={item.driveLink}
           />
 
           <div className="p-5 bg-brand-bg border-l-4 border-brand-red font-sans text-gray-900 text-sm leading-relaxed whitespace-pre-line font-medium shadow-[2px_2px_0px_0px_rgba(0,0,0,0.05)]">
@@ -847,26 +926,17 @@ function DetailModal({
             )}
           </div>
 
-          <div className="pt-4 border-t-2 border-dashed border-gray-200 flex justify-between items-center text-[9px] font-mono text-gray-400 uppercase">
-            <span>Referencia ID: {item.id.substring(0, 8)}</span>
-            <span>Liceo EPS</span>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
 interface ProjectCardProps {
   project: any;
   user: any;
+  onOpenDetail: (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => void;
   accent?: boolean;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
 }
 
-function ProjectCard({ project, user, accent = false, isSelected, onSelect }: ProjectCardProps) {
+function ProjectCard({ project, user, onOpenDetail, accent = false, isSelected, onSelect }: ProjectCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -956,81 +1026,61 @@ function ProjectCard({ project, user, accent = false, isSelected, onSelect }: Pr
         <h4 className="text-3xl lg:text-4xl font-extrabold leading-[0.95] tracking-tighter uppercase mb-6 break-words group-hover:text-brand-red transition-colors font-sans">
           {project.title}
         </h4>
-        <CardMediaPreview attachmentUrl={project.attachmentUrl} attachmentType={project.attachmentType} attachmentName={project.attachmentName} imageUrl={project.imageUrl} />
+        <CardMediaPreview attachmentUrl={project.attachmentUrl} attachmentType={project.attachmentType} attachmentName={project.attachmentName} imageUrl={project.imageUrl} driveLink={project.driveLink} />
         <div className={cn("p-4 border-l-4 border-brand-red mb-6", accent ? "bg-white/5" : "bg-brand-bg")}>
           <p className={cn("text-xs md:text-sm leading-relaxed line-clamp-5 font-medium not-italic font-sans", accent ? "text-white" : "text-gray-900")}>
             {project.description}
           </p>
         </div>
-        {project.driveLink && (
-          <a 
-            href={project.driveLink} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className={cn("inline-flex items-center gap-2 mb-4 text-[10px] font-bold uppercase border-b-2", accent ? "text-blue-400 border-blue-400 hover:text-white hover:border-white" : "text-blue-600 border-blue-600 hover:text-brand-black hover:border-brand-black")}
-          >
-            <Link2 className="w-3 h-3" /> Ver en Drive
-          </a>
-        )}
-        {project.attachmentUrl && (
-          <a 
-            href={project.attachmentUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className={cn("inline-flex items-center gap-2 mb-2 text-[10px] font-bold uppercase border-b-2", accent ? "text-green-400 border-green-400 hover:text-white hover:border-white" : "text-green-700 border-green-700 hover:text-brand-black hover:border-brand-black")}
-          >
-            <Paperclip className="w-3 h-3" /> Descargar Adjunto
-          </a>
-        )}
       </div>
       <div className="flex flex-col gap-4 mt-auto">
         {isAdmin && (
           <div className="flex flex-col gap-2 pt-4 border-t border-current border-opacity-10 mb-4">
             {project.rejected ? (
-               <div className="flex gap-2">
-                <PolishedButton className="bg-blue-600 text-white hover:bg-blue-700 flex-1 text-[10px]" onClick={handleUnapprove}>
-                  Restaurar a Pendientes
-                </PolishedButton>
-                <PolishedButton className="bg-green-600 text-white hover:bg-green-700 flex-1 text-[10px]" onClick={handleApprove}>
-                  Aprobar
-                </PolishedButton>
-              </div>
+              <PolishedButton onClick={handleApprove} className="w-full bg-green-600 text-white hover:bg-green-700 text-[10px] py-2 border-none">
+                Aprobar Proyecto
+              </PolishedButton>
             ) : !project.approved ? (
               <div className="flex gap-2">
-                <PolishedButton className="bg-green-600 text-white hover:bg-green-700 flex-1 text-[10px]" onClick={handleApprove}>
+                <PolishedButton onClick={handleApprove} className="flex-1 bg-green-600 text-white hover:bg-green-700 text-[10px] py-2 border-none">
                   Aprobar
                 </PolishedButton>
-                <button onClick={handleReject} title="Rechazar" className="bg-brand-red text-white p-2 hover:bg-black transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
+                <PolishedButton onClick={handleReject} className="flex-1 bg-brand-red text-white hover:bg-red-700 text-[10px] py-2 border-none">
+                  Rechazar
+                </PolishedButton>
               </div>
             ) : (
-              <button onClick={handleUnapprove} className="text-[9px] font-bold uppercase text-brand-red hover:underline text-left">
-                Retirar Publicación (Mover a Pendientes)
-              </button>
+              <PolishedButton onClick={handleUnapprove} className="w-full bg-yellow-500 text-black hover:bg-yellow-600 text-[10px] py-2 border-none">
+                Desaprobar Proyecto
+              </PolishedButton>
             )}
-            <button
+            <PolishedButton 
               onClick={handlePin}
-              className={cn("text-[9px] font-bold uppercase hover:underline text-left flex items-center gap-1", project.pinned ? "text-brand-red" : "text-gray-400 hover:text-brand-red")}
+              className={cn(
+                "w-full text-[10px] py-2 border-2 border-brand-black font-bold uppercase",
+                project.pinned 
+                  ? "bg-brand-black text-white hover:bg-brand-red" 
+                  : "bg-white text-brand-black hover:bg-brand-black hover:text-white"
+              )}
             >
-              {project.pinned ? '📌 Desfijar publicación' : '📌 Fijar publicación'}
-            </button>
+              {project.pinned ? '📌 Desfijar Proyecto' : '📌 Fijar Proyecto'}
+            </PolishedButton>
           </div>
         )}
-        <div className="flex justify-between items-end pt-4 border-t border-current border-opacity-10">
-          <div className="flex flex-col gap-1">
-            <span className={cn("text-[9px] font-mono tracking-widest uppercase", accent ? "text-white/60" : "text-gray-400")}>Referencia</span>
-            <span className={cn("text-[10px] font-bold font-mono", accent ? "text-white" : "text-brand-red")}>{project.id.substring(0, 8)}</span>
+        <div className="flex justify-between items-center text-[8px] font-mono opacity-50 uppercase tracking-widest">
+          <div>
+            Por: {project.authorName || 'Anónimo'}
           </div>
           <div className="flex items-center gap-4">
             {user && (project.authorId === user.uid || isAdmin) && (
-              <button onClick={handleDelete} className={cn("hover:scale-110 transition-transform", accent ? "text-white/40 hover:text-white" : "text-gray-300 hover:text-brand-red")}>
+              <button onClick={handleDelete} className={cn("hover:scale-110 transition-transform cursor-pointer", accent ? "text-white/40 hover:text-white" : "text-gray-300 hover:text-brand-red")}>
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
             <PolishedButton 
               variant="ghost" 
-              className={cn("px-0 group", accent ? "text-white hover:text-white" : "text-brand-black hover:text-brand-red")}
+              onClick={() => onOpenDetail(project, 'projects')}
+              className={cn("px-0 group cursor-pointer", accent ? "text-white hover:text-white" : "text-brand-black hover:text-brand-red")}
             >
               <span className="underline decoration-2 underline-offset-4 text-[10px] font-bold uppercase tracking-widest">Explorar Proyecto</span>
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -1040,18 +1090,17 @@ function ProjectCard({ project, user, accent = false, isSelected, onSelect }: Pr
       </div>
     </PolishedCard>
   );
-}
-
 interface WorkCardProps {
   work: any;
   user: any;
+  onOpenDetail: (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => void;
   dark?: boolean;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
 }
 
-function WorkCard({ work, user, dark = false, isSelected, onSelect }: WorkCardProps) {
+function WorkCard({ work, user, onOpenDetail, dark = false, isSelected, onSelect }: WorkCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -1141,7 +1190,7 @@ function WorkCard({ work, user, dark = false, isSelected, onSelect }: WorkCardPr
           {work.title}
         </h4>
 
-        <CardMediaPreview attachmentUrl={work.attachmentUrl} attachmentType={work.attachmentType} attachmentName={work.attachmentName} imageUrl={work.imageUrl} />
+        <CardMediaPreview attachmentUrl={work.attachmentUrl} attachmentType={work.attachmentType} attachmentName={work.attachmentName} imageUrl={work.imageUrl} driveLink={work.driveLink} />
         
         <div className={cn("relative p-6 mb-6 border-l-4 border-brand-red", dark ? "bg-white/5" : "bg-brand-bg")}>
           <span className="text-5xl font-serif text-brand-red leading-none absolute top-1 left-2 select-none opacity-30">“</span>
@@ -1224,11 +1273,21 @@ function WorkCard({ work, user, dark = false, isSelected, onSelect }: WorkCardPr
             <span className={cn("text-[9px] font-mono tracking-widest uppercase opacity-40", dark ? "text-white" : "text-gray-500")}>Escrito por</span>
             <span className={cn("text-xs font-black uppercase mt-1", dark ? "text-brand-red" : "text-brand-black")}>{work.studentName}</span>
           </div>
-          {user && (work.authorId === user.uid || isAdmin) && (
-            <button onClick={handleDelete} className={cn("hover:text-brand-red hover:scale-110 transition-all", dark ? "text-white/40" : "text-gray-300 hover:text-brand-red")}>
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
+          <div className="flex items-center gap-4">
+            {user && (work.authorId === user.uid || isAdmin) && (
+              <button onClick={handleDelete} className={cn("hover:text-brand-red hover:scale-110 transition-all cursor-pointer", dark ? "text-white/40" : "text-gray-300 hover:text-brand-red")}>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <PolishedButton 
+              variant="ghost" 
+              onClick={() => onOpenDetail(work, 'works')}
+              className={cn("px-0 group cursor-pointer", dark ? "text-white hover:text-white" : "text-brand-black hover:text-brand-red")}
+            >
+              <span className="underline decoration-2 underline-offset-4 text-[10px] font-bold uppercase tracking-widest">Leer Escrito</span>
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </PolishedButton>
+          </div>
         </div>
       </div>
     </PolishedCard>
@@ -1238,12 +1297,13 @@ function WorkCard({ work, user, dark = false, isSelected, onSelect }: WorkCardPr
 interface MaterialCardProps {
   material: any;
   user: any;
+  onOpenDetail: (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => void;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
 }
 
-function MaterialCard({ material, user, isSelected, onSelect }: MaterialCardProps) {
+function MaterialCard({ material, user, onOpenDetail, isSelected, onSelect }: MaterialCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -1325,7 +1385,7 @@ function MaterialCard({ material, user, isSelected, onSelect }: MaterialCardProp
         <h4 className="text-2xl lg:text-3xl font-extrabold leading-[1.05] uppercase tracking-tighter">{material.title}</h4>
       </div>
 
-      <CardMediaPreview attachmentUrl={material.attachmentUrl} attachmentType={material.attachmentType} attachmentName={material.attachmentName} />
+      <CardMediaPreview attachmentUrl={material.attachmentUrl} attachmentType={material.attachmentType} attachmentName={material.attachmentName} driveLink={material.driveLink} />
       
       <div className="flex-grow flex flex-col justify-between">
         <div>
@@ -1387,26 +1447,22 @@ function MaterialCard({ material, user, isSelected, onSelect }: MaterialCardProp
         )}
         <div className="flex flex-col gap-2 pt-4 border-t border-brand-border">
           <div className="flex items-center gap-3">
-            {(material.driveLink || material.fileUrl) ? (
-              <a href={material.driveLink || material.fileUrl} target="_blank" rel="noopener noreferrer" className="flex-grow">
-                <PolishedButton variant="primary" className="w-full text-[10px] py-4 uppercase font-bold tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-2 border-brand-black bg-brand-red text-white hover:shadow-none hover:translate-x-1 hover:translate-y-1">
-                  <Link2 className="w-3.5 h-3.5 mr-2" />
-                  {material.driveLink ? 'Ver en Drive' : 'Descargar Archivo'}
-                </PolishedButton>
-              </a>
-            ) : (
-              <PolishedButton variant="outline" className="flex-grow opacity-30 cursor-not-allowed text-[10px] py-4 bg-gray-100 uppercase font-bold tracking-widest border-2">
-                Sin Archivo Adjunto
-              </PolishedButton>
-            )}
+            <PolishedButton 
+              variant="primary" 
+              onClick={() => onOpenDetail(material, 'materials')}
+              className="flex-grow text-[10px] py-4 uppercase font-bold tracking-widest shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-2 border-brand-black bg-brand-red text-white hover:shadow-none hover:translate-x-1 hover:translate-y-1 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 mr-2 inline animate-pulse" />
+              Ver Recurso Pedagógico
+            </PolishedButton>
             {user && (material.authorId === user.uid || isAdmin) && (
-              <button onClick={handleDelete} className="p-3 text-gray-300 hover:text-brand-red hover:scale-110 transition-all">
+              <button onClick={handleDelete} className="p-3 text-gray-300 hover:text-brand-red hover:scale-110 transition-all cursor-pointer">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
           </div>
           {material.attachmentUrl && (
-            <a href={material.attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-[10px] font-bold uppercase text-green-700 border-b-2 border-green-700 hover:text-brand-black hover:border-brand-black self-start">
+            <a href={material.attachmentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-[10px] font-bold uppercase text-green-700 border-b-2 border-green-700 hover:text-brand-black hover:border-brand-black self-start mt-2">
               <Paperclip className="w-3 h-3" /> Descargar Adjunto Subido
             </a>
           )}
@@ -1419,12 +1475,13 @@ function MaterialCard({ material, user, isSelected, onSelect }: MaterialCardProp
 interface ActivityCardProps {
   activity: Activity;
   user: User | null;
+  onOpenDetail: (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => void;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   key?: any;
 }
 
-function ActivityCard({ activity, user, isSelected, onSelect }: ActivityCardProps) {
+function ActivityCard({ activity, user, onOpenDetail, isSelected, onSelect }: ActivityCardProps) {
   const confirm = useRetroConfirm();
   const adminEmails = ['crwom01@gmail.com', 'leps.vespertina.epja@gmail.com', 'jav.arayamolina@gmail.com'];
   const isAdmin = (user?.email && adminEmails.includes(user.email)) || (typeof window !== 'undefined' && (window as any).__isDemoAdmin);
@@ -1521,6 +1578,7 @@ function ActivityCard({ activity, user, isSelected, onSelect }: ActivityCardProp
           attachmentType={activity.attachmentType} 
           attachmentName={activity.attachmentName}
           imageUrl={activity.imageUrl}
+          driveLink={activity.driveLink}
         />
         {!activity.imageUrl && !activity.attachmentUrl && (
           <div className="aspect-video w-full bg-brand-red/10 border-b-4 border-brand-black flex items-center justify-center relative p-6">
@@ -1604,14 +1662,22 @@ function ActivityCard({ activity, user, isSelected, onSelect }: ActivityCardProp
             </div>
           )}
 
-          {user && (activity.authorId === user.uid || isAdmin) && (
-            <div className="flex gap-2 pt-4 border-t border-brand-border justify-end">
-              <button onClick={handleDelete} className="px-3 py-1.5 text-gray-400 hover:text-brand-red transition-colors flex items-center justify-center border-2 border-brand-black bg-gray-50 hover:bg-white text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex gap-2 pt-4 border-t border-brand-border justify-between items-center w-full">
+            <PolishedButton 
+              variant="ghost" 
+              onClick={() => onOpenDetail(activity, 'activities')}
+              className="px-0 group cursor-pointer"
+            >
+              <span className="underline decoration-2 underline-offset-4 text-[10px] font-bold uppercase tracking-widest text-brand-black hover:text-brand-red">Explorar Actividad</span>
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform inline" />
+            </PolishedButton>
+            {user && (activity.authorId === user.uid || isAdmin) && (
+              <button onClick={handleDelete} className="px-3 py-1.5 text-gray-400 hover:text-brand-red transition-colors flex items-center justify-center border-2 border-brand-black bg-gray-50 hover:bg-white text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer">
                 <Trash2 className="w-3.5 h-3.5 mr-1" />
                 <span className="text-[10px] font-black tracking-widest uppercase">Eliminar</span>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </PolishedCard>
@@ -1625,10 +1691,11 @@ interface AdminDashboardProps {
   activities: any[];
   testimonials: any[];
   user: any;
+  onOpenDetail: (item: any, type: 'projects' | 'works' | 'materials' | 'activities') => void;
   key?: any;
 }
 
-function AdminDashboard({ projects, works, materials, activities, testimonials, user }: AdminDashboardProps) {
+function AdminDashboard({ projects, works, materials, activities, testimonials, user, onOpenDetail }: AdminDashboardProps) {
   const confirm = useRetroConfirm();
   const [adminTab, setAdminTab] = useState<'projects' | 'works' | 'materials' | 'activities' | 'testimonials'>('works');
   const [filterMode, setFilterMode] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
@@ -1985,6 +2052,7 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                 <ProjectCard 
                   project={item} 
                   user={user} 
+                  onOpenDetail={onOpenDetail}
                   isSelected={selectedIds.includes(item.id)} 
                   onSelect={toggleSelect} 
                 />
@@ -1993,6 +2061,7 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                 <WorkCard 
                   work={item} 
                   user={user} 
+                  onOpenDetail={onOpenDetail}
                   isSelected={selectedIds.includes(item.id)} 
                   onSelect={toggleSelect} 
                 />
@@ -2001,6 +2070,7 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                 <MaterialCard 
                   material={item} 
                   user={user} 
+                  onOpenDetail={onOpenDetail}
                   isSelected={selectedIds.includes(item.id)} 
                   onSelect={toggleSelect} 
                 />
@@ -2009,6 +2079,7 @@ function AdminDashboard({ projects, works, materials, activities, testimonials, 
                 <ActivityCard 
                   activity={item} 
                   user={user} 
+                  onOpenDetail={onOpenDetail}
                   isSelected={selectedIds.includes(item.id)} 
                   onSelect={toggleSelect} 
                 />
