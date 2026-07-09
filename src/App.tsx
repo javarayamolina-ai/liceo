@@ -25,8 +25,8 @@ import {
   UploadCloud,
   File as FileIcon,
   Search,
-  Heart,
-  Share2
+  Share2,
+  ChevronDown
 } from 'lucide-react';
 import { auth, storage } from './lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -1240,22 +1240,9 @@ function DetailModal({
             {item.description}
           </div>
 
-          {/* Like & Share Bar */}
-          {onToggleLike && onShare && (
+          {/* Share Bar */}
+          {onShare && (
             <div className="flex items-center gap-3 py-1">
-              <button 
-                onClick={onToggleLike}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
-                  isLiked 
-                    ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" 
-                    : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
-                )}
-              >
-                <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
-                <span>{item.likes || 0}</span>
-              </button>
-
               <button 
                 onClick={onShare}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
@@ -1514,21 +1501,6 @@ function ProjectCard({
         )}
         <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-2">
           <button 
-            onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
-              isLiked 
-                ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
-                : accent 
-                  ? "bg-brand-black text-white hover:bg-neutral-800 border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5" 
-                  : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
-            )}
-          >
-            <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
-            <span>{project.likes || 0}</span>
-          </button>
-
-          <button 
             onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
@@ -1768,21 +1740,6 @@ function WorkCard({
         )}
         <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-2">
           <button 
-            onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
-              isLiked 
-                ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
-                : dark 
-                  ? "bg-brand-black text-white hover:bg-neutral-800 border-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5" 
-                  : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
-            )}
-          >
-            <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
-            <span>{work.likes || 0}</span>
-          </button>
-
-          <button 
             onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
@@ -1994,19 +1951,6 @@ function MaterialCard({
           </div>
         )}
         <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-auto mb-4">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
-              isLiked 
-                ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
-                : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
-            )}
-          >
-            <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
-            <span>{material.likes || 0}</span>
-          </button>
-
           <button 
             onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
@@ -2248,19 +2192,6 @@ function ActivityCard({
           )}
 
           <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-2 mb-2">
-            <button 
-              onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(); }}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
-                isLiked 
-                  ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
-                  : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
-              )}
-            >
-              <Heart className={cn("w-3.5 h-3.5", isLiked ? "fill-white" : "")} />
-              <span>{activity.likes || 0}</span>
-            </button>
-
             <button 
               onClick={(e) => { e.stopPropagation(); onShare && onShare(); }}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
@@ -2865,20 +2796,8 @@ function TestimonialsView({
               </div>
 
               {/* Likes & Share Bar */}
+              {/* Share Bar */}
               <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-auto">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onToggleLike && onToggleLike(t.id, t.likes || 0); }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
-                    likedItems.includes(t.id) 
-                      ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" 
-                      : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
-                  )}
-                >
-                  <Heart className={cn("w-3.5 h-3.5", likedItems.includes(t.id) ? "fill-white" : "")} />
-                  <span>{t.likes || 0}</span>
-                </button>
-
                 <button 
                   onClick={(e) => { e.stopPropagation(); onShare && onShare(t); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
@@ -3644,6 +3563,89 @@ function AdminEditForm({ item, tab, onSave, onClose }: { item: any; tab: string;
   );
 }
 
+function DropdownFilter({
+  options,
+  selected,
+  onSelect,
+  placeholder,
+  shortenPie = false,
+}: {
+  options: string[];
+  selected: string | null;
+  onSelect: (val: string | null) => void;
+  placeholder: string;
+  shortenPie?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={dropdownRef} className="relative w-full md:w-64 inline-block text-left z-30">
+      <div>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "w-full flex items-center justify-between gap-2 px-4 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-brand-black bg-white text-brand-black transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5",
+            selected !== null && "border-brand-red text-brand-red shadow-[3px_3px_0px_0px_rgba(188,33,34,1)]"
+          )}
+        >
+          <span>
+            {selected 
+              ? (shortenPie && selected === "P.I.E. (Programa de Integración Escolar)" ? "P.I.E." : selected)
+              : placeholder}
+          </span>
+          <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isOpen && "rotate-180")} />
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 mt-2 w-full border-2 border-brand-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] z-40 max-h-60 overflow-y-auto">
+          <div className="py-1">
+            <button
+              onClick={() => {
+                onSelect(null);
+                setIsOpen(false);
+              }}
+              className={cn(
+                "w-full text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-neutral-50 cursor-pointer",
+                selected === null ? "text-brand-red bg-neutral-50 font-black" : "text-gray-400 hover:text-brand-black"
+              )}
+            >
+              Todos
+            </button>
+            {options.map((option) => (
+              <button
+                key={option}
+                onClick={() => {
+                  onSelect(option);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "w-full text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors hover:bg-neutral-50 cursor-pointer",
+                  selected === option ? "text-brand-red bg-neutral-50 font-black" : "text-gray-400 hover:text-brand-black"
+                )}
+              >
+                {shortenPie && option === "P.I.E. (Programa de Integración Escolar)" ? "P.I.E." : option}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FilterBar({ 
   selected, 
   onSelect 
@@ -3652,33 +3654,13 @@ function FilterBar({
   onSelect: (val: string | null) => void; 
 }) {
   return (
-    <div className="flex overflow-x-auto gap-2 mb-12 border-b border-brand-border pb-8 pt-[3px] no-scrollbar scroll-smooth">
-      <button 
-        onClick={() => onSelect(null)}
-        className={cn(
-          "whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all duration-200 shrink-0",
-          selected === null 
-            ? "bg-brand-black text-white border-brand-black shadow-[3px_3px_0px_0px_rgba(188,33,34,1)]" 
-            : "bg-white text-gray-400 border-brand-border hover:border-brand-black hover:text-brand-black"
-        )}
-      >
-        Todos
-      </button>
-      {ASIGNATURAS.map(asig => (
-        <button 
-          key={asig}
-          onClick={() => onSelect(asig)}
-          className={cn(
-            "whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all duration-200 shrink-0",
-            selected === asig 
-              ? "bg-brand-red text-white border-brand-red shadow-[3px_3px_0px_0px_rgba(26,26,26,1)]" 
-              : "bg-white text-gray-400 border-brand-border hover:border-brand-red hover:text-brand-red"
-          )}
-        >
-          {asig === "P.I.E. (Programa de Integración Escolar)" ? "P.I.E." : asig}
-        </button>
-      ))}
-    </div>
+    <DropdownFilter 
+      options={ASIGNATURAS} 
+      selected={selected} 
+      onSelect={onSelect} 
+      placeholder="Seleccionar Asignatura"
+      shortenPie={true}
+    />
   );
 }
 
@@ -3690,33 +3672,12 @@ function CourseFilterBar({
   onSelect: (val: string | null) => void; 
 }) {
   return (
-    <div className="flex overflow-x-auto gap-2 mb-12 border-b border-brand-border pb-8 pt-[3px] no-scrollbar scroll-smooth">
-      <button 
-        onClick={() => onSelect(null)}
-        className={cn(
-          "whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all duration-200 shrink-0",
-          selected === null 
-            ? "bg-brand-black text-white border-brand-black shadow-[3px_3px_0px_0px_rgba(188,33,34,1)]" 
-            : "bg-white text-gray-400 border-brand-border hover:border-brand-black hover:text-brand-black"
-        )}
-      >
-        Todos los Cursos
-      </button>
-      {CURSOS.map(curso => (
-        <button 
-          key={curso}
-          onClick={() => onSelect(curso)}
-          className={cn(
-            "whitespace-nowrap px-4 py-2 text-[10px] font-bold uppercase tracking-widest border transition-all duration-200 shrink-0",
-            selected === curso 
-              ? "bg-brand-red text-white border-brand-red shadow-[3px_3px_0px_0px_rgba(26,26,26,1)]" 
-              : "bg-white text-gray-400 border-brand-border hover:border-brand-red hover:text-brand-red"
-          )}
-        >
-          {curso}
-        </button>
-      ))}
-    </div>
+    <DropdownFilter 
+      options={CURSOS} 
+      selected={selected} 
+      onSelect={onSelect} 
+      placeholder="Seleccionar Curso"
+    />
   );
 }
 
@@ -3957,22 +3918,9 @@ function ResumenPublicaciones({
               </p>
             </div>
 
-            {/* Like & Share Bar */}
-            {!item.isDummy && onToggleLike && onShare && (
+            {/* Share Bar */}
+            {!item.isDummy && onShare && (
               <div className="flex items-center gap-3 pt-3 border-t border-brand-border mt-auto mb-2">
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onToggleLike(item); }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black transition-all cursor-pointer",
-                    likedItems.includes(item.id) 
-                      ? "bg-brand-red text-white shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]" 
-                      : "bg-white text-brand-black hover:bg-neutral-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
-                  )}
-                >
-                  <Heart className={cn("w-3 h-3", likedItems.includes(item.id) ? "fill-white" : "")} />
-                  <span>{item.likes || 0}</span>
-                </button>
-
                 <button 
                   onClick={(e) => { e.stopPropagation(); onShare(item); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider border-2 border-brand-black bg-white text-brand-black hover:bg-neutral-50 transition-all cursor-pointer shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
